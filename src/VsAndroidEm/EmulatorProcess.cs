@@ -1,15 +1,20 @@
-﻿using System;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Microsoft.VisualStudio.PlatformUI;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms.Integration;
+using System.Windows.Input;
 
 namespace VsAndroidEm
 {
-    public class EmulatorProcess
+    public class EmulatorProcess : CommunityToolkit.Mvvm.ComponentModel.ObservableObject
     {
         private readonly EmulatorViewer _viewer = new();
 
@@ -17,6 +22,8 @@ namespace VsAndroidEm
         {
             ProcessId = processId;
             Name = name;
+            StartCommand = new RelayCommand(Start);
+            StopCommand = new RelayCommand(Stop);
 
             HostView = new WindowsFormsHost
             {
@@ -53,14 +60,25 @@ namespace VsAndroidEm
 
         public event EventHandler ErrorRaised;
 
+        public bool ShowToolBarWindow
+        {
+            get => _viewer.ShowToolWindow;
+            set => _viewer.ShowToolWindow = value;
+        }
+
+        public ICommand StartCommand { get; }
+
         public void Start()
         {
             _viewer.Start(ProcessId);
         }
 
+        public ICommand StopCommand { get; }
+
         public void Stop()
         {
             _viewer.Stop();
         }
+
     }
 }

@@ -315,5 +315,34 @@ namespace VsAndroidEm
 
         [DllImport("user32.dll")]
         public static extern bool UpdateWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr OpenProcess(ProcessAccessFlags dwDesiredAccess, bool bInheritHandle, int dwProcessId);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool CloseHandle(IntPtr hObject);
+
+        [Flags]
+        public enum ProcessAccessFlags : uint
+        {
+            QueryLimitedInformation = 0x1000
+        }
+
+        public static bool CheckProcessIsRunning(int processId)
+        {
+            // Open the process with query limited information rights and get a handle to the process
+            IntPtr processHandle = OpenProcess(ProcessAccessFlags.QueryLimitedInformation, false, processId);
+
+            if (processHandle == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            CloseHandle(processHandle);
+            return true;
+        }
     }
 }

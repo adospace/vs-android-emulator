@@ -16,10 +16,15 @@ namespace VsAndroidEm
     {
         private Process _process;
         private IntPtr _mainWindowHandle;
-        private IntPtr? _childWindowHandle;
+        private IntPtr _childWindowHandle;
+        private IntPtr _toolWindowHandle;
+        private bool _toolWindowVisible;
+
         private bool _hosted;
         private bool _updateChildWindowSize = true;
-        private Size? _lastChildWindowSize;
+        private Size _lastChildWindowSize;
+        private Size _toolWindowSize;
+
         private bool _inError;
 
         Timer _timerUpdate;
@@ -93,18 +98,22 @@ namespace VsAndroidEm
 
             _process = null;
             _mainWindowHandle = IntPtr.Zero;
-            _childWindowHandle = null;
+            _childWindowHandle = IntPtr.Zero;
             _hosted = false;
             _inError = false;
             _updateChildWindowSize = false;
+            _toolWindowHandle = IntPtr.Zero;
+            _toolWindowVisible = false;
 
+            ShowToolWindow = false;
             LastErrorMessage = null;
-
         }
 
         public bool IsStarted => _process != null;
 
         public string LastErrorMessage { get; private set; }
+
+        public bool ShowToolWindow { get; set; }
 
         public event EventHandler ProcessExited;
 
@@ -133,6 +142,7 @@ namespace VsAndroidEm
             if (_process.HasExited)
             {
                 ProcessExited?.Invoke(this, EventArgs.Empty);
+
                 return;
             }
 
@@ -145,11 +155,11 @@ namespace VsAndroidEm
                 }
             }
 
-            if (_childWindowHandle == null)
+            if (_childWindowHandle == IntPtr.Zero)
             {
-                _childWindowHandle = Win32API.GetAllChildWindows(_mainWindowHandle)?.FirstOrDefault();
+                _childWindowHandle = Win32API.GetAllChildWindows(_mainWindowHandle)?.FirstOrDefault() ?? IntPtr.Zero;
 
-                if (_childWindowHandle == null)
+                if (_childWindowHandle == IntPtr.Zero)
                 {
                     return;
                 }
@@ -163,14 +173,30 @@ namespace VsAndroidEm
                         .Where(_ => _ != _process.MainWindowHandle)
                         .ToList();
 
-                    allProcessWindows.ForEach(handle => Win32API.ShowWindow(handle, Win32API.SW_HIDE));
+                    foreach (var processWindowHandle in allProcessWindows)
+                    {
+                        StringBuilder className = new StringBuilder(256);
 
-                    Win32API.GetWindowRect(_childWindowHandle.Value, out var childWindowRect);
+                        Win32API.GetClassName(processWindowHandle, className, className.Capacity);
+
+                        if (className.ToString() == "Qt5QWindowToolSaveBits")
+                        {
+                            _toolWindowHandle = processWindowHandle;
+                            break;
+                        }
+                    }
+
+                    allProcessWindows
+                        .Where(_ => _ != _toolWindowHandle)
+                        .ToList()
+                        .ForEach(handle => Win32API.ShowWindow(handle, Win32API.SW_HIDE));
+
+                    Win32API.GetWindowRect(_childWindowHandle, out var childWindowRect);
                     _lastChildWindowSize = new Size(childWindowRect.Right - childWindowRect.Left, childWindowRect.Bottom - childWindowRect.Top);
-                    childContainer.Width = _lastChildWindowSize.Value.Width;
-                    childContainer.Height = _lastChildWindowSize.Value.Height;
-                    childContainer.Left = Math.Max(0, (Width - childContainer.Width) / 2);
-                    childContainer.Top = Math.Max(0, (Height - childContainer.Height) / 2);
+                    childContainer.Width = _lastChildWindowSize.Width;
+                    childContainer.Height = _lastChildWindowSize.Height;
+                    childContainer.Left = Math.Max(0, (emulatorContainer.Width - childContainer.Width) / 2);
+                    childContainer.Top = Math.Max(0, (emulatorContainer.Height - childContainer.Height) / 2);
 
 
                     var childStyle = (IntPtr)(Win32API.WindowStyles.WS_CHILD |
@@ -183,6 +209,23 @@ namespace VsAndroidEm
                     Win32API.SetWindowLong(_process.MainWindowHandle, Win32API.GWL_STYLE, (int)childStyle);
 
                     Win32API.SetParent(_process.MainWindowHandle, childContainer.Handle);
+
+
+                    //setup tool window
+                    Win32API.GetWindowRect(_toolWindowHandle, out var toolWindowRect);
+
+                    _toolWindowSize = new Size(toolWindowRect.Right - toolWindowRect.Left, toolWindowRect.Bottom - toolWindowRect.Top);
+
+                    childStyle = (IntPtr)(Win32API.WindowStyles.WS_CHILD |
+                                          // the parent cannot draw over the child's area. this is needed to avoid refresh issues
+                                          Win32API.WindowStyles.WS_CLIPCHILDREN |
+                                          Win32API.WindowStyles.WS_VISIBLE |
+                                          Win32API.WindowStyles.WS_MAXIMIZE
+                                          );
+
+                    Win32API.SetWindowLong(_toolWindowHandle, Win32API.GWL_STYLE, (int)childStyle);
+
+                    Win32API.SetParent(_toolWindowHandle, toolContainer.Handle);
                 }
                 catch (Exception ex)
                 {
@@ -196,12 +239,27 @@ namespace VsAndroidEm
                 _hosted = true;
             }
 
+            if (ShowToolWindow && !_toolWindowVisible)
+            {
+                toolContainer.Width = _toolWindowSize.Width;
+                _toolWindowVisible = true;
+
+                Win32API.SetWindowPos(_toolWindowHandle, IntPtr.Zero, 0, 0, _toolWindowSize.Width, _toolWindowSize.Height, Win32API.SetWindowPosFlags.ShowWindow);
+
+                Win32API.UpdateWindow(_toolWindowHandle);
+            }
+            else if (!ShowToolWindow && _toolWindowVisible)
+            {
+                toolContainer.Width = 0;
+                _toolWindowVisible = false;
+            }
+
             if (_updateChildWindowSize)
             {
                 try
                 {
 
-                    Win32API.SetWindowPos(_mainWindowHandle, IntPtr.Zero, 0, 0, Width, Height, Win32API.SetWindowPosFlags.ShowWindow);
+                    Win32API.SetWindowPos(_mainWindowHandle, IntPtr.Zero, 0, 0, emulatorContainer.Width, emulatorContainer.Height, Win32API.SetWindowPosFlags.ShowWindow);
 
                     Win32API.UpdateWindow(_process.MainWindowHandle);
                 }
@@ -218,18 +276,18 @@ namespace VsAndroidEm
             {
                 try
                 {
-                    Win32API.GetWindowRect(_childWindowHandle.Value, out var childWindowRect);
+                    Win32API.GetWindowRect(_childWindowHandle, out var childWindowRect);
 
                     var currentChildWindowSize = new Size(childWindowRect.Right - childWindowRect.Left, childWindowRect.Bottom - childWindowRect.Top);
 
-                    if (currentChildWindowSize != _lastChildWindowSize.Value || _updateChildWindowSize)
+                    if (currentChildWindowSize != _lastChildWindowSize || _updateChildWindowSize)
                     {
                         _lastChildWindowSize = new Size(childWindowRect.Right - childWindowRect.Left, childWindowRect.Bottom - childWindowRect.Top);
 
-                        childContainer.Width = _lastChildWindowSize.Value.Width;
-                        childContainer.Height = _lastChildWindowSize.Value.Height;
-                        childContainer.Left = Math.Max(0, (Width - childContainer.Width) / 2);
-                        childContainer.Top = Math.Max(0, (Height - childContainer.Height) / 2);
+                        childContainer.Width = _lastChildWindowSize.Width;
+                        childContainer.Height = _lastChildWindowSize.Height;
+                        childContainer.Left = Math.Max(0, (emulatorContainer.Width - childContainer.Width) / 2);
+                        childContainer.Top = Math.Max(0, (emulatorContainer.Height - childContainer.Height) / 2);
                 
                         _updateChildWindowSize = false;
                     }

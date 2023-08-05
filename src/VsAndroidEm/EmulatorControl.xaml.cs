@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.Shell;
+﻿using Microsoft.VisualStudio.PlatformUI;
+using Microsoft.VisualStudio.Shell;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -31,27 +32,14 @@ namespace VsAndroidEm
         {
             InitializeComponent();
 
+            
             tabs.ItemsSource = _processes;
 
+            //ThemedDialogColors
 
             this.Loaded += MainWindow_Loaded;
-            //this.Closed += MainWindow_Closed;
+            
         }
-
-        //private void MainWindow_Closed(object sender, EventArgs e)
-        //{
-        //    foreach (var process in _processes)
-        //    {
-        //        process.Stop();
-
-        //        var avdRunningFolderFiles = System.IO.Path.Combine(
-        //            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "temp", "avd", "running");
-
-        //        var processIniFile = System.IO.Path.Combine(avdRunningFolderFiles, $"pid_{process.ProcessId}.ini");
-
-        //        File.Delete(processIniFile);
-        //    }
-        //}
 
         private void Timer_Tick(object sender, EventArgs e)
         {
@@ -63,6 +51,12 @@ namespace VsAndroidEm
                 var processId = int.Parse(System.IO.Path.GetFileNameWithoutExtension(file).Substring(4)); //pid_
 
                 if (_processes.Any(_ => _.ProcessId == processId))
+                {
+                    continue;
+                }
+
+
+                if (!Win32API.CheckProcessIsRunning(processId))
                 {
                     continue;
                 }

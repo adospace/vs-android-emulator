@@ -58,8 +58,30 @@
             </TabControl.ItemTemplate>
             <TabControl.ContentTemplate>
                 <DataTemplate>
-                    <ContentPresenter
-                        Content="{Binding HostView}"/>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Orientation="Horizontal">
+                            <Button 
+                                Content="Stop" 
+                                Command="{Binding StopCommand}"
+                                MinWidth="80"/>
+                            <ToggleButton 
+                                Content="Tools" 
+                                IsChecked="{Binding ShowToolBarWindow}" 
+                                Margin="5,0,0,0"                                        
+                                
+                                MinWidth="80"/>
+                        </StackPanel>
+                        
+                        <ContentPresenter
+                            Grid.Row="1"
+                            Content="{Binding HostView}"
+                            />
+                    </Grid>
                 </DataTemplate>
             </TabControl.ContentTemplate>
         </TabControl>
