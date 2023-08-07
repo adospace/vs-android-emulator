@@ -1,7 +1,9 @@
 ﻿using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 using System;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Task = System.Threading.Tasks.Task;
@@ -43,6 +45,16 @@ namespace VsAndroidEm
             await this.RegisterCommandsAsync();
 
             this.RegisterToolWindows();
+
+            //await JoinableTaskFactory.SwitchToMainThreadAsync();
+
+            //IVsActivityLog log = (IVsActivityLog)(await GetServiceAsync(typeof(SVsActivityLog)));
+            //if (log == null) return;
+
+            //int hr = log.LogEntry((UInt32)__ACTIVITYLOG_ENTRYTYPE.ALE_INFORMATION,
+            //    this.ToString(),
+            //    string.Format(CultureInfo.CurrentCulture,
+            //    "Called for: {0}", this.ToString()));
         }
     }
 }

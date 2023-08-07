@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Forms.Integration;
 using System.Windows.Input;
 
@@ -18,10 +19,11 @@ namespace VsAndroidEm
     {
         private readonly EmulatorViewer _viewer = new();
 
-        public EmulatorProcess(int processId, string name)
+        public EmulatorProcess(int processId, string name, string emulatorName)
         {
             ProcessId = processId;
             Name = name;
+            EmulatorName = emulatorName;
             StartCommand = new RelayCommand(Start);
             StopCommand = new RelayCommand(Stop);
 
@@ -31,30 +33,39 @@ namespace VsAndroidEm
             };
 
             _viewer.ProcessExited += (s, e) => ProcessExited?.Invoke(this, e);
-            _viewer.ErrorRaised += (s, e) => ErrorRaised?.Invoke(this, e);
+            _viewer.ErrorRaised += (s, e) =>
+            {
+                OnPropertyChanged("LastErrorMessage");
+                OnPropertyChanged("LastErrorMessageVisibility");                
+                ErrorRaised?.Invoke(this, e);
+            };
         }
 
         public static EmulatorProcess CreateFromIniFile(string iniFilePath)
         {
             var processId = int.Parse(System.IO.Path.GetFileNameWithoutExtension(iniFilePath).Substring(4));
-            var avdName = File.ReadAllLines(iniFilePath)
+            var iniValues = File.ReadAllLines(iniFilePath)
                 .Select(_ => _.Split('='))
-                .First(_ => _[0] == "avd.name")
-                [1];
+                .ToDictionary(_ => _[0], _ => _[1]);
 
-            return new EmulatorProcess(processId, avdName);
+            var avdName = iniValues["avd.name"];
+            var emulatorName = $"emulator-{iniValues["port.serial"]}";
+
+            return new EmulatorProcess(processId, avdName, emulatorName);
         }
 
         public int ProcessId { get; }
 
         public string Name { get; }
-
+        public string EmulatorName { get; }
         public WindowsFormsHost HostView { get; }
 
         public bool IsStarted => _viewer.IsStarted;
 
         public string LastErrorMessage => _viewer.LastErrorMessage;
 
+        public Visibility LastErrorMessageVisibility 
+            => !string.IsNullOrEmpty(_viewer.LastErrorMessage) ? Visibility.Visible : Visibility.Collapsed;
 
         public event EventHandler ProcessExited;
 
@@ -70,7 +81,7 @@ namespace VsAndroidEm
 
         public void Start()
         {
-            _viewer.Start(ProcessId);
+            _viewer.Start(ProcessId, EmulatorName);
         }
 
         public ICommand StopCommand { get; }

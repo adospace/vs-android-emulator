@@ -344,5 +344,20 @@ namespace VsAndroidEm
             CloseHandle(processHandle);
             return true;
         }
+
+        [DllImport("kernel32.dll")]
+        public static extern uint GetLastError();
+
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+        public static extern uint FormatMessage(uint dwFlags, IntPtr lpSource, uint dwMessageId,
+            uint dwLanguageId, StringBuilder lpBuffer, uint nSize, IntPtr Arguments);
+
+        public const uint FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
+        public const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsWindowVisible(IntPtr hWnd);
     }
 }

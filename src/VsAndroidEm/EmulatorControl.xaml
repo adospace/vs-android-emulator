@@ -6,6 +6,7 @@
              xmlns:local="clr-namespace:VsAndroidEm"
              xmlns:toolkit="clr-namespace:Community.VisualStudio.Toolkit;assembly=Community.VisualStudio.Toolkit"
              xmlns:vsShell="clr-namespace:Microsoft.Internal.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:PresentationOptions="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
              toolkit:Themes.UseVsTheme="True"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800"
@@ -61,6 +62,7 @@
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition/>
                         </Grid.RowDefinitions>
 
@@ -76,9 +78,31 @@
                                 
                                 MinWidth="80"/>
                         </StackPanel>
+
+                        <TextBlock
+                            Grid.Row="1"
+                            Text="{Binding LastErrorMessage}"
+                            Visibility="{Binding LastErrorMessageVisibility}"
+                            Foreground="White"
+                            Background="Red"
+                            />
+
+                        <!--<Border
+                            Grid.Row="2">
+                            <Border.Background>
+                                <VisualBrush TileMode="Tile" Viewport="0,0,30,30" ViewportUnits="Absolute" Viewbox="0,0,30,30" ViewboxUnits="Absolute" PresentationOptions:Freeze="True">
+                                    <VisualBrush.Visual>
+                                        <Grid Background="Black">
+                                            <Path Data="M 0 0 L 15 0 L 15 15 L 0 15" Fill="DarkGray" />
+                                            <Path Data="M 15 15 L 30 15 L 30 30 L 15 30" Fill="DarkGray" />
+                                        </Grid>
+                                    </VisualBrush.Visual>
+                                </VisualBrush>
+                            </Border.Background>
+                        </Border>-->
                         
                         <ContentPresenter
-                            Grid.Row="1"
+                            Grid.Row="2"
                             Content="{Binding HostView}"
                             />
                     </Grid>

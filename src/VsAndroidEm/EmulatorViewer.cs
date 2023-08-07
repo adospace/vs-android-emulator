@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.VisualStudio.RpcContracts;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -14,6 +15,7 @@ namespace VsAndroidEm
 {
     public partial class EmulatorViewer : UserControl
     {
+        private string _emulatorName;
         private Process _process;
         private IntPtr _mainWindowHandle;
         private IntPtr _childWindowHandle;
@@ -35,7 +37,7 @@ namespace VsAndroidEm
 
         }
 
-        public void Start(int processId)
+        public void Start(int processId, string emulatorName)
         {
             lock (this)
             {
@@ -44,6 +46,7 @@ namespace VsAndroidEm
                     return;
                 }
 
+                _emulatorName = emulatorName;
                 _process = Process.GetProcessById(processId);
 
                 if (_process.HasExited)
@@ -54,7 +57,7 @@ namespace VsAndroidEm
 
                 _timerUpdate = new Timer
                 {
-                    Interval = 1000
+                    Interval = 100
                 };
                 _timerUpdate.Tick += TimerUpdate_Tick;
                 _timerUpdate.Start();
@@ -72,15 +75,54 @@ namespace VsAndroidEm
 
                 StopCore(closeEmulatorProcess);
 
-                _timerUpdate.Stop();
-                _timerUpdate.Tick -= TimerUpdate_Tick;
-                _timerUpdate.Dispose();
-                _timerUpdate = null;
+                if (_timerUpdate != null)
+                {
+                    _timerUpdate.Stop();
+                    _timerUpdate.Tick -= TimerUpdate_Tick;
+                    _timerUpdate.Dispose();
+                    _timerUpdate = null;
+                }
             }
+        }
+
+        private static bool ExecuteAdbCommand(string command)
+        {
+            ProcessStartInfo processInfo = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = "/c " + command,
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            Process process = new Process
+            {
+                StartInfo = processInfo
+            };
+
+            process.Start();
+            return process.WaitForExit(5000);
         }
 
         private void StopCore(bool closeEmulatorProcess)
         {
+            if (_process != null && closeEmulatorProcess)
+            {
+                // Command to gracefully close the emulator
+                string shutdownCommand = $"adb -s {_emulatorName} shell reboot -p";
+
+                if (!_process.HasExited &&
+                    ExecuteAdbCommand(shutdownCommand))
+                {
+                    if (_process.WaitForExit(5000))
+                    {
+                        ProcessExited?.Invoke(this, EventArgs.Empty);
+                        _process = null;
+                    }
+                }
+            }
+
             if (_process != null && closeEmulatorProcess)
             {
                 try
@@ -88,6 +130,8 @@ namespace VsAndroidEm
                     if (!_process.HasExited)
                     {
                         _process.Kill();
+                        _process = null;
+                        ProcessExited?.Invoke(this, EventArgs.Empty);
                     }
                 }
                 catch (Exception)
@@ -148,6 +192,13 @@ namespace VsAndroidEm
 
             if (_mainWindowHandle == IntPtr.Zero)
             {
+                if (!Win32API.IsWindowVisible(_process.MainWindowHandle) ||
+                    !Win32API.GetWindowRect(_process.MainWindowHandle, out var _))
+                {
+                    //main window not ready
+                    return;
+                }
+
                 _mainWindowHandle = _process.MainWindowHandle;
                 if (_mainWindowHandle == IntPtr.Zero)
                 {
@@ -175,9 +226,12 @@ namespace VsAndroidEm
 
                     foreach (var processWindowHandle in allProcessWindows)
                     {
-                        StringBuilder className = new StringBuilder(256);
+                        StringBuilder className = new(256);
 
-                        Win32API.GetClassName(processWindowHandle, className, className.Capacity);
+                        if (0 == Win32API.GetClassName(processWindowHandle, className, className.Capacity))
+                        {
+                            throw new InvalidOperationException($"Unable to get window class name ({GetLastErrorMessage()})");
+                        }
 
                         if (className.ToString() == "Qt5QWindowToolSaveBits")
                         {
@@ -191,13 +245,24 @@ namespace VsAndroidEm
                         .ToList()
                         .ForEach(handle => Win32API.ShowWindow(handle, Win32API.SW_HIDE));
 
-                    Win32API.GetWindowRect(_childWindowHandle, out var childWindowRect);
+                    if (!Win32API.GetWindowRect(_childWindowHandle, out var childWindowRect))
+                    {
+                        throw new InvalidOperationException($"Unable to get child window rect ({GetLastErrorMessage()})");
+                    }
+
                     _lastChildWindowSize = new Size(childWindowRect.Right - childWindowRect.Left, childWindowRect.Bottom - childWindowRect.Top);
+                    
                     childContainer.Width = _lastChildWindowSize.Width;
                     childContainer.Height = _lastChildWindowSize.Height;
                     childContainer.Left = Math.Max(0, (emulatorContainer.Width - childContainer.Width) / 2);
                     childContainer.Top = Math.Max(0, (emulatorContainer.Height - childContainer.Height) / 2);
 
+                    var currentStyle = Win32API.GetWindowLong(_process.MainWindowHandle, Win32API.GWL_STYLE);
+
+                    if ((currentStyle & (int)Win32API.WindowStyles.WS_CHILD) > 0)
+                    {
+                        throw new InvalidOperationException("Emulator window already hosted");
+                    }
 
                     var childStyle = (IntPtr)(Win32API.WindowStyles.WS_CHILD |
                                               // the parent cannot draw over the child's area. this is needed to avoid refresh issues
@@ -206,13 +271,21 @@ namespace VsAndroidEm
                                               Win32API.WindowStyles.WS_MAXIMIZE
                                               );
 
-                    Win32API.SetWindowLong(_process.MainWindowHandle, Win32API.GWL_STYLE, (int)childStyle);
+                    if (0 == Win32API.SetWindowLong(_process.MainWindowHandle, Win32API.GWL_STYLE, (int)childStyle))
+                    {
+                        throw new InvalidOperationException($"Unable to set main window style ({GetLastErrorMessage()})");
+                    }
 
-                    Win32API.SetParent(_process.MainWindowHandle, childContainer.Handle);
-
+                    if (IntPtr.Zero == Win32API.SetParent(_process.MainWindowHandle, childContainer.Handle))
+                    {
+                        throw new InvalidOperationException($"Unable to relocate emulator main window ({GetLastErrorMessage()})");
+                    }
 
                     //setup tool window
-                    Win32API.GetWindowRect(_toolWindowHandle, out var toolWindowRect);
+                    if (!Win32API.GetWindowRect(_toolWindowHandle, out var toolWindowRect))
+                    {
+                        throw new InvalidOperationException($"Unable to get tool window rect ({GetLastErrorMessage()})");
+                    }
 
                     _toolWindowSize = new Size(toolWindowRect.Right - toolWindowRect.Left, toolWindowRect.Bottom - toolWindowRect.Top);
 
@@ -223,9 +296,16 @@ namespace VsAndroidEm
                                           Win32API.WindowStyles.WS_MAXIMIZE
                                           );
 
-                    Win32API.SetWindowLong(_toolWindowHandle, Win32API.GWL_STYLE, (int)childStyle);
+                    if (0 == Win32API.SetWindowLong(_toolWindowHandle, Win32API.GWL_STYLE, (int)childStyle))
+                    {
+                        throw new InvalidOperationException($"Unable to set tool window style ({GetLastErrorMessage()})");
+                    }
 
-                    Win32API.SetParent(_toolWindowHandle, toolContainer.Handle);
+                    if (IntPtr.Zero == Win32API.SetParent(_toolWindowHandle, toolContainer.Handle))
+                    {
+                        throw new InvalidOperationException($"Unable to relocate emulator tool window ({GetLastErrorMessage()})");
+                    }
+
                 }
                 catch (Exception ex)
                 {
@@ -239,29 +319,21 @@ namespace VsAndroidEm
                 _hosted = true;
             }
 
-            if (ShowToolWindow && !_toolWindowVisible)
-            {
-                toolContainer.Width = _toolWindowSize.Width;
-                _toolWindowVisible = true;
-
-                Win32API.SetWindowPos(_toolWindowHandle, IntPtr.Zero, 0, 0, _toolWindowSize.Width, _toolWindowSize.Height, Win32API.SetWindowPosFlags.ShowWindow);
-
-                Win32API.UpdateWindow(_toolWindowHandle);
-            }
-            else if (!ShowToolWindow && _toolWindowVisible)
-            {
-                toolContainer.Width = 0;
-                _toolWindowVisible = false;
-            }
-
-            if (_updateChildWindowSize)
+            if (_toolWindowVisible)
             {
                 try
                 {
+                    if (!Win32API.GetWindowRect(_toolWindowHandle, out var toolWindowRect))
+                    {
 
-                    Win32API.SetWindowPos(_mainWindowHandle, IntPtr.Zero, 0, 0, emulatorContainer.Width, emulatorContainer.Height, Win32API.SetWindowPosFlags.ShowWindow);
+                    }
 
-                    Win32API.UpdateWindow(_process.MainWindowHandle);
+                    if (toolWindowRect.Left != 0 || toolWindowRect.Right != 0)
+                    {
+                        Win32API.SetWindowPos(_toolWindowHandle, IntPtr.Zero, 0, 0, _toolWindowSize.Width, _toolWindowSize.Height, Win32API.SetWindowPosFlags.ShowWindow);
+
+                        Win32API.UpdateWindow(_toolWindowHandle);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -270,13 +342,52 @@ namespace VsAndroidEm
                     ErrorRaised?.Invoke(this, EventArgs.Empty);
                     return;
                 }
+            }
 
+            if (ShowToolWindow && !_toolWindowVisible)
+            {
+                toolContainer.Width = _toolWindowSize.Width;
+                _toolWindowVisible = true;
+                _updateChildWindowSize = true;
+            }
+            else if (!ShowToolWindow && _toolWindowVisible)
+            {
+                toolContainer.Width = 0;
+                _toolWindowVisible = false;
+                _updateChildWindowSize = true;
+            }
+
+            if (_updateChildWindowSize)
+            {
+                try
+                {
+                    if (!Win32API.SetWindowPos(_mainWindowHandle, IntPtr.Zero, 0, 0, emulatorContainer.Width, emulatorContainer.Height, Win32API.SetWindowPosFlags.ShowWindow))
+                    {
+                        throw new InvalidOperationException($"Unable to set main window position ({GetLastErrorMessage()})");
+                    }
+
+                    if (!Win32API.UpdateWindow(_process.MainWindowHandle))
+                    {
+                        throw new InvalidOperationException($"Unable to update main window ({GetLastErrorMessage()})");
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    _inError = true;
+                    LastErrorMessage = ex.Message;
+                    ErrorRaised?.Invoke(this, EventArgs.Empty);
+                    return;
+                }
             }
 
             {
                 try
                 {
-                    Win32API.GetWindowRect(_childWindowHandle, out var childWindowRect);
+                    if (!Win32API.GetWindowRect(_childWindowHandle, out var childWindowRect))
+                    {
+                        throw new InvalidOperationException($"Unable to get child window rect ({GetLastErrorMessage()})");
+                    }
 
                     var currentChildWindowSize = new Size(childWindowRect.Right - childWindowRect.Left, childWindowRect.Bottom - childWindowRect.Top);
 
@@ -302,6 +413,22 @@ namespace VsAndroidEm
                     return;
                 }
             }
+        }
+
+        private string GetLastErrorMessage()
+        {
+            uint errorCode = Win32API.GetLastError();
+
+            if (errorCode == 0)
+            {
+                return string.Empty;
+            }
+
+            StringBuilder messageBuffer = new(512);
+            Win32API.FormatMessage(Win32API.FORMAT_MESSAGE_FROM_SYSTEM | Win32API.FORMAT_MESSAGE_IGNORE_INSERTS,
+                IntPtr.Zero, errorCode, 0, messageBuffer, (uint)messageBuffer.Capacity, IntPtr.Zero);
+
+            return $"Error Code: {errorCode} - {messageBuffer}";
         }
 
         protected override void OnResize(EventArgs e)
