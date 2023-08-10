@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -29,7 +30,9 @@ namespace VsAndroidEm
 
         private bool _inError;
 
-        Timer _timerUpdate;
+        private static readonly SemaphoreSlim _lockSemaphore = new SemaphoreSlim(1, 1);
+
+        System.Windows.Forms.Timer _timerUpdate;
 
         public EmulatorViewer()
         {
@@ -55,7 +58,7 @@ namespace VsAndroidEm
                     return;
                 }
 
-                _timerUpdate = new Timer
+                _timerUpdate = new System.Windows.Forms.Timer
                 {
                     Interval = 500
                 };
@@ -64,16 +67,18 @@ namespace VsAndroidEm
             }
         }
 
-        public void Stop(bool closeEmulatorProcess = true)
+        public async Task StopAsync(bool closeEmulatorProcess = true)
         {
-            lock (this)
+            try
             {
+                await _lockSemaphore.WaitAsync();
+
                 if (!IsStarted)
                 {
                     return;
                 }
 
-                StopCore(closeEmulatorProcess);
+                await StopCoreAsync(closeEmulatorProcess);
 
                 if (_timerUpdate != null)
                 {
@@ -83,42 +88,35 @@ namespace VsAndroidEm
                     _timerUpdate = null;
                 }
             }
+            finally
+            {
+                _lockSemaphore.Release();
+            }
         }
 
-        private static bool ExecuteAdbCommand(string command)
+        private async Task<bool> WaitForProcessExitAsync(int milliseconds)
         {
-            ProcessStartInfo processInfo = new ProcessStartInfo
-            {
-                FileName = "cmd.exe",
-                Arguments = "/c " + command,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
+            Task waitForExitTask = Task.Run(() => _process.WaitForExit());
 
-            Process process = new()
-            {
-                StartInfo = processInfo
-            };
+            Task delayTask = Task.Delay(milliseconds);
 
-            process.Start();
-            return process.WaitForExit(5000);
+            Task completedTask = await Task.WhenAny(waitForExitTask, delayTask);
+
+            return (completedTask == waitForExitTask);
         }
 
-        private void StopCore(bool closeEmulatorProcess)
+        private async Task StopCoreAsync(bool closeEmulatorProcess)
         {
             if (_process != null && closeEmulatorProcess)
             {
                 // Command to gracefully close the emulator
-                string shutdownCommand = $"adb -s {_emulatorName} shell reboot -p";
-
                 if (!_process.HasExited &&
-                    ExecuteAdbCommand(shutdownCommand))
+                    await AdbCLI.KillEmulatorAsync(_emulatorName))
                 {
-                    if (_process.WaitForExit(5000))
+                    if (await WaitForProcessExitAsync(5000))
                     {
-                        ProcessExited?.Invoke(this, EventArgs.Empty);
                         _process = null;
+                        ProcessExited?.Invoke(this, EventArgs.Empty);
                     }
                 }
             }
@@ -413,6 +411,9 @@ namespace VsAndroidEm
                             childContainer.Top = Math.Max(0, (emulatorContainer.Height - childContainer.Height) / 2);
 
                             Debug.WriteLine($"[{_emulatorName}] MainWindow position adjusted");
+
+                            Win32API.ShowWindow(_process.MainWindowHandle, Win32API.SW_SHOW);
+                            Win32API.ShowWindow(_toolWindowHandle, Win32API.SW_SHOW);
 
                             _updateChildWindowSize = false;
                         }

@@ -45,6 +45,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AdbCLI.cs" />
+    <Compile Include="EmulatorCLI.cs" />
     <Compile Include="EmulatorControl.xaml.cs">
       <DependentUpon>EmulatorControl.xaml</DependentUpon>
     </Compile>
@@ -92,6 +94,9 @@
     <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="CliWrap">
+      <Version>3.6.4</Version>
+    </PackageReference>
     <PackageReference Include="Community.VisualStudio.VSCT" Version="16.0.29.6" PrivateAssets="all" />
     <PackageReference Include="Community.VisualStudio.Toolkit.17" Version="17.0.492" ExcludeAssets="Runtime">
       <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

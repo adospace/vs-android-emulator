@@ -61,33 +61,45 @@ namespace VsAndroidEm
                     continue;
                 }
 
-                var newEmulatorDetected = EmulatorProcess.CreateFromIniFile(file);
+                try
+                {
+                    var newEmulatorDetected = EmulatorProcess.CreateFromIniFile(file);
 
-                newEmulatorDetected.ProcessExited += Emulator_ProcessExited;
-                newEmulatorDetected.ErrorRaised += Emulator_ErrorRaised;
+                    newEmulatorDetected.ProcessExited += Emulator_ProcessExited;
+                    newEmulatorDetected.ErrorRaised += Emulator_ErrorRaised;
 
-                _processes.Add(newEmulatorDetected);
+                    newEmulatorDetected.Start();
 
-                newEmulatorDetected.Start();
+                    _processes.Add(newEmulatorDetected);
 
-                tabs.SelectedItem = newEmulatorDetected;
+                    tabs.SelectedItem = newEmulatorDetected;
+                }
+                catch(Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(ex);
+                }
+
             }
         }
 
         private void Emulator_ErrorRaised(object sender, EventArgs e)
         {
-            var emulatorProcess = (EmulatorProcess)sender;
-            emulatorProcess.Stop();
 
-            _processes.Remove(emulatorProcess);
         }
 
-        private void Emulator_ProcessExited(object sender, EventArgs e)
+        private async void Emulator_ProcessExited(object sender, EventArgs e)
         {
-            var emulatorProcess = (EmulatorProcess)sender;
-            emulatorProcess.Stop();
+            try
+            {
+                var emulatorProcess = (EmulatorProcess)sender;
+                await emulatorProcess.StopAsync();
 
-            _processes.Remove(emulatorProcess);
+                _processes.Remove(emulatorProcess);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -100,20 +112,27 @@ namespace VsAndroidEm
             _timer.Start();
         }
 
-        internal void Stop()
+        internal async void Stop()
         {
-            _timer.Stop();
-
-            foreach (var process in _processes.ToArray())
+            try
             {
-                process.Stop();
+                _timer.Stop();
 
-                var avdRunningFolderFiles = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "temp", "avd", "running");
+                foreach (var process in _processes.ToArray())
+                {
+                    await process.StopAsync();
 
-                var processIniFile = System.IO.Path.Combine(avdRunningFolderFiles, $"pid_{process.ProcessId}.ini");
+                    var avdRunningFolderFiles = System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "temp", "avd", "running");
 
-                File.Delete(processIniFile);
+                    var processIniFile = System.IO.Path.Combine(avdRunningFolderFiles, $"pid_{process.ProcessId}.ini");
+
+                    File.Delete(processIniFile);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
             }
         }
     }

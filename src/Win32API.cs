@@ -15,6 +15,11 @@ namespace VsAndroidEm
         [DllImport("User32.dll")]
         internal static extern IntPtr SetParent(IntPtr hwc, IntPtr hwp);
 
+        [DllImport("user32.dll", SetLastError = true)]
+        internal static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+        public const uint WM_CLOSE = 0x0010;
+
         /// <summary>
         /// This static method is required because legacy OSes do not support SetWindowLongPtr
         /// </summary>

@@ -25,7 +25,7 @@ namespace VsAndroidEm
             Name = name;
             EmulatorName = emulatorName;
             StartCommand = new RelayCommand(Start);
-            StopCommand = new RelayCommand(Stop);
+            StopCommand = new AsyncRelayCommand(StopAsync);
 
             HostView = new WindowsFormsHost
             {
@@ -86,9 +86,9 @@ namespace VsAndroidEm
 
         public ICommand StopCommand { get; }
 
-        public void Stop()
+        public async Task StopAsync()
         {
-            _viewer.Stop();
+            await _viewer.StopAsync();
         }
 
     }
