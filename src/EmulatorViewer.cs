@@ -67,7 +67,7 @@ namespace VsAndroidEm
             }
         }
 
-        public async Task StopAsync(bool closeEmulatorProcess = true)
+        public async Task StopAsync(bool closeEmulatorProcess = true, bool shutdownEmulator = false)
         {
             try
             {
@@ -78,7 +78,7 @@ namespace VsAndroidEm
                     return;
                 }
 
-                await StopCoreAsync(closeEmulatorProcess);
+                await StopCoreAsync(closeEmulatorProcess, shutdownEmulator);
 
                 if (_timerUpdate != null)
                 {
@@ -105,13 +105,13 @@ namespace VsAndroidEm
             return (completedTask == waitForExitTask);
         }
 
-        private async Task StopCoreAsync(bool closeEmulatorProcess)
+        private async Task StopCoreAsync(bool closeEmulatorProcess, bool shutdownEmulator = false)
         {
             if (_process != null && closeEmulatorProcess)
             {
                 // Command to gracefully close the emulator
                 if (!_process.HasExited &&
-                    await AdbCLI.KillEmulatorAsync(_emulatorName))
+                    (shutdownEmulator ? await AdbCLI.ShutdownEmulatorAsync(_emulatorName) : await AdbCLI.StopEmulatorAsync(_emulatorName)))
                 {
                     if (await WaitForProcessExitAsync(5000))
                     {

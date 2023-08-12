@@ -26,6 +26,8 @@ namespace VsAndroidEm
             EmulatorName = emulatorName;
             StartCommand = new RelayCommand(Start);
             StopCommand = new AsyncRelayCommand(StopAsync);
+            ShowToolBarWindowCommand = new RelayCommand(ShowToolWindow);
+            ShutdownCommand = new AsyncRelayCommand(ShutdownAsync);
 
             HostView = new WindowsFormsHost
             {
@@ -71,10 +73,11 @@ namespace VsAndroidEm
 
         public event EventHandler ErrorRaised;
 
-        public bool ShowToolBarWindow
+        public ICommand ShowToolBarWindowCommand { get; }
+
+        public void ShowToolWindow()
         {
-            get => _viewer.ShowToolWindow;
-            set => _viewer.ShowToolWindow = value;
+            _viewer.ShowToolWindow = !_viewer.ShowToolWindow;
         }
 
         public ICommand StartCommand { get; }
@@ -89,6 +92,13 @@ namespace VsAndroidEm
         public async Task StopAsync()
         {
             await _viewer.StopAsync();
+        }
+
+        public ICommand ShutdownCommand { get; }
+
+        public async Task ShutdownAsync()
+        {
+            await _viewer.StopAsync(closeEmulatorProcess: true, shutdownEmulator: true);
         }
 
     }

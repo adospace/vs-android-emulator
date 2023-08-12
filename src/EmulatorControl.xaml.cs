@@ -32,10 +32,13 @@ namespace VsAndroidEm
         {
             InitializeComponent();
 
+            _processes.Add(new EmulatorProcess(123, "asda", "ada"));
+
             
             tabs.ItemsSource = _processes;
 
             //ThemedDialogColors
+            //VsBrushes.ButtonTextKey
 
             this.Loaded += MainWindow_Loaded;
             

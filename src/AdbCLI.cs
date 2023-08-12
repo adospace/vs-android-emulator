@@ -36,16 +36,18 @@ class AdbCLI
             .WithWorkingDirectory(adbDirectory)
             .ExecuteBufferedAsync();
 
+        System.Diagnostics.Debug.WriteLine(result.StandardError);
 
+        System.Diagnostics.Debug.WriteLine(result.StandardOutput);
 
         return result;
     }
 
     public static async Task<bool> ShutdownEmulatorAsync(string emulatorName)
-        => (await ExecuteCommandAsync("-s", emulatorName, "shell", "reboot", "-p")).ExitCode == 0;
+        => (await ExecuteBufferedCommandAsync("-s", emulatorName, "shell", "reboot", "-p")).ExitCode == 0;
 
-    public static async Task<bool> KillEmulatorAsync(string emulatorName)
-        => (await ExecuteCommandAsync("-s", emulatorName, "emu", "Kill")).ExitCode == 0;
+    public static async Task<bool> StopEmulatorAsync(string emulatorName)
+        => (await ExecuteBufferedCommandAsync("-s", emulatorName, "emu", "kill")).ExitCode == 0;
 
 
 

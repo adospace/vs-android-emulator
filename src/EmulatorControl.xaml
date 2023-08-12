@@ -6,6 +6,7 @@
              xmlns:local="clr-namespace:VsAndroidEm"
              xmlns:toolkit="clr-namespace:Community.VisualStudio.Toolkit;assembly=Community.VisualStudio.Toolkit"
              xmlns:vsShell="clr-namespace:Microsoft.Internal.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
+             xmlns:platform="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
              xmlns:PresentationOptions="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
              toolkit:Themes.UseVsTheme="True"
              mc:Ignorable="d" 
@@ -51,6 +52,7 @@
                         </Setter.Value>
                     </Setter>
                 </Style>
+
             </TabControl.Resources>
             <TabControl.ItemTemplate>
                 <DataTemplate>
@@ -68,15 +70,58 @@
 
                         <StackPanel Orientation="Horizontal">
                             <Button 
-                                Content="Stop" 
                                 Command="{Binding StopCommand}"
-                                MinWidth="80"/>
-                            <ToggleButton 
-                                Content="Tools" 
-                                IsChecked="{Binding ShowToolBarWindow}" 
-                                Margin="5,0,0,0"                                        
-                                
-                                MinWidth="80"/>
+                                HorizontalContentAlignment="Left"
+                                BorderThickness="0"
+                                ToolTipService.ToolTip="Stop the emulator saving its state"
+                                Height="24"
+                                >
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="24"/>
+                                        <ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+                                    <Image
+                                        Source="pack://application:,,,/VsAndroidEm;component/Resources/StopOutline.png"
+                                        Stretch="None"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        />
+                                    <TextBlock
+                                        Margin="4,0"
+                                        Grid.Column="1"
+                                        Text="Stop"/>
+                                </Grid>
+                            </Button>
+                            <Button 
+                                Command="{Binding ShutdownCommand}" 
+                                ToolTipService.ToolTip="Shutdown the emulator"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Margin="5,0,0,0"
+                                MinWidth="24">
+                                <Image
+                                    Source="pack://application:,,,/VsAndroidEm;component/Resources/Stop.png"
+                                    Stretch="None"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"                                    
+                                    />
+                            </Button>
+                            <Separator/>
+                            <Button 
+                                Command="{Binding ShowToolBarWindowCommand}" 
+                                ToolTipService.ToolTip="Open/close the emulator toolbar"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Margin="5,0,0,0"
+                                MinWidth="24">
+                                <Image
+                                    Source="pack://application:,,,/VsAndroidEm;component/Resources/SettingsPanel.png"
+                                    Stretch="None"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"                                    
+                                    />
+                            </Button>
                         </StackPanel>
 
                         <TextBlock
