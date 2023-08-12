@@ -18,16 +18,17 @@ namespace VsAndroidEm
     public class EmulatorProcess : CommunityToolkit.Mvvm.ComponentModel.ObservableObject
     {
         private readonly EmulatorViewer _viewer = new();
+        private bool _isBusy;
 
         public EmulatorProcess(int processId, string name, string emulatorName)
         {
             ProcessId = processId;
             Name = name;
             EmulatorName = emulatorName;
-            StartCommand = new RelayCommand(Start);
-            StopCommand = new AsyncRelayCommand(StopAsync);
-            ShowToolBarWindowCommand = new RelayCommand(ShowToolWindow);
-            ShutdownCommand = new AsyncRelayCommand(ShutdownAsync);
+            StartCommand = new RelayCommand(Start, () => !IsBusy);
+            StopCommand = new AsyncRelayCommand(StopAsync, () => !IsBusy);
+            ShowToolBarWindowCommand = new RelayCommand(ShowToolWindow, () => !IsBusy);
+            ShutdownCommand = new AsyncRelayCommand(ShutdownAsync, () => !IsBusy);
 
             HostView = new WindowsFormsHost
             {
@@ -56,15 +57,32 @@ namespace VsAndroidEm
             return new EmulatorProcess(processId, avdName, emulatorName);
         }
 
+        public ICommand StartCommand { get; }
+        public ICommand ShowToolBarWindowCommand { get; }
+        public ICommand StopCommand { get; }
+        public ICommand ShutdownCommand { get; }
+
         public int ProcessId { get; }
 
         public string Name { get; }
+
         public string EmulatorName { get; }
+
         public WindowsFormsHost HostView { get; }
 
         public bool IsStarted => _viewer.IsStarted;
 
         public string LastErrorMessage => _viewer.LastErrorMessage;
+
+        public bool IsBusy
+        {
+            get => _isBusy;
+            set
+            {
+                SetProperty(ref _isBusy, value);
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
 
         public Visibility LastErrorMessageVisibility 
             => !string.IsNullOrEmpty(_viewer.LastErrorMessage) ? Visibility.Visible : Visibility.Collapsed;
@@ -73,32 +91,36 @@ namespace VsAndroidEm
 
         public event EventHandler ErrorRaised;
 
-        public ICommand ShowToolBarWindowCommand { get; }
-
         public void ShowToolWindow()
         {
             _viewer.ShowToolWindow = !_viewer.ShowToolWindow;
         }
 
-        public ICommand StartCommand { get; }
-
         public void Start()
         {
-            _viewer.Start(ProcessId, EmulatorName);
-        }
+            IsBusy = true;
 
-        public ICommand StopCommand { get; }
+            _viewer.Start(ProcessId, EmulatorName);
+
+            IsBusy = false;
+        }
 
         public async Task StopAsync()
         {
-            await _viewer.StopAsync();
-        }
+            IsBusy = true;
 
-        public ICommand ShutdownCommand { get; }
+            await _viewer.StopAsync();
+
+            IsBusy = false;
+        }
 
         public async Task ShutdownAsync()
         {
-            await _viewer.StopAsync(closeEmulatorProcess: true, shutdownEmulator: true);
+            IsBusy = true;
+
+            await _viewer.StopAsync(shutdownEmulator: true);
+
+            IsBusy = false;
         }
 
     }

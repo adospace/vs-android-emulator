@@ -15,143 +15,129 @@
              >
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition MaxHeight="24"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition/>
         </Grid.RowDefinitions>
+        
+        <Grid x:Name="toolbar"
+              Visibility="Collapsed"
+              d:Visibility="Visible"
+              >
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="24"/>
+                <ColumnDefinition Width="24"/>
+            </Grid.ColumnDefinitions>
 
-        <TabControl
-            x:Name="tabs"
+            <ComboBox
+                x:Name="tabs"
+                Padding="6,0"
+                BorderThickness="0"
+                >
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <Button 
+                Command="{Binding SelectedItem.StopCommand, ElementName=tabs}"
+                ToolTipService.ToolTip="Stop the emulator saving its state"
+                Grid.Column="1"
+                BorderThickness="0"
+                MinWidth="0"
+                Padding="0"
+                >
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Image
+                        Source="pack://application:,,,/VsAndroidEm;component/Resources/StopOutline.png"
+                        Stretch="None"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center"
+                        />
+                    <TextBlock
+                        Margin="0,0,4,0"
+                        Grid.Column="1"
+                        Text="Stop"/>
+                </Grid>
+            </Button>
+            
+            <Button 
+                Command="{Binding SelectedItem.ShutdownCommand, ElementName=tabs}"
+                ToolTipService.ToolTip="Shutdown the emulator without saving its state"
+                Grid.Column="2"
+                BorderThickness="0"
+                MinWidth="0"
+                Padding="0"
+                >
+                <Image
+                    Source="pack://application:,,,/VsAndroidEm;component/Resources/Stop.png"
+                    Stretch="None"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    />
+            </Button>
+
+            <Button 
+                Command="{Binding SelectedItem.ShowToolBarWindowCommand, ElementName=tabs}"
+                ToolTipService.ToolTip="Show/Hide emulator toolbox"
+                Grid.Column="3"
+                BorderThickness="0"
+                MinWidth="0"
+                Padding="0"
+                >
+                <Viewbox Width="16 " Height="16" xmlns:System="clr-namespace:System;assembly=mscorlib">
+                    <Rectangle Width="16" Height="16">
+                        <Rectangle.Resources>
+                            <SolidColorBrush x:Key="canvas" Opacity="0" />
+                            <SolidColorBrush x:Key="light-defaultgrey-10" Color="White" Opacity="0.3" />
+                            <SolidColorBrush x:Key="light-defaultgrey" Color="#212121" Opacity="1" />
+                            <System:Double x:Key="cls-1">0.75</System:Double>
+                        </Rectangle.Resources>
+                        <Rectangle.Fill>
+                            <DrawingBrush Stretch="None">
+                                <DrawingBrush.Drawing>
+                                    <DrawingGroup>
+                                        <DrawingGroup x:Name="canvas">
+                                            <GeometryDrawing Brush="{DynamicResource canvas}" Geometry="F1M16,16H0V0H16Z" />
+                                        </DrawingGroup>
+                                        <DrawingGroup x:Name="level_1">
+                                            <DrawingGroup Opacity="{DynamicResource cls-1}">
+                                                <GeometryDrawing Brush="{DynamicResource light-defaultgrey-10}" Geometry="F1M11.5,5v8h-7V5Z" />
+                                                <GeometryDrawing Brush="{DynamicResource light-defaultgrey}" Geometry="F1M11.5,5h-7L4,5.5v8l.5.5h7l.5-.5v-8ZM11,13H5V6h6Z" />
+                                            </DrawingGroup>
+                                            <GeometryDrawing Brush="{DynamicResource light-defaultgrey-10}" Geometry="F1M11,3V5H5V3Z" />
+                                            <GeometryDrawing Brush="{DynamicResource light-defaultgrey}" Geometry="F1M11.5,6h-7L4,5.5v-3L4.5,2h7l.5.5v3ZM5,5h6V3H5Z" />
+                                        </DrawingGroup>
+                                    </DrawingGroup>
+                                </DrawingBrush.Drawing>
+                            </DrawingBrush>
+                        </Rectangle.Fill>
+                    </Rectangle>
+                </Viewbox>
+            </Button>
+        </Grid>
+
+        <TextBlock
             Grid.Row="1"
-            Background="Transparent"
-            BorderThickness="0"
-            >
-            <TabControl.Resources>
-                <Style TargetType="{x:Type TabItem}">
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="{x:Type TabItem}">
-                                <Grid>
-                                    <Button
-                                        Name="TabItemBorder"
-                                        Background="Transparent"
-                                        BorderThickness="0,0,0,1">
-                                        <ContentPresenter ContentSource="Header"/>
-                                    </Button>
-                                    <ContentPresenter
-                                        ContentSource="Header"
-                                        RecognizesAccessKey="True"
-                                        TextBlock.Foreground="Transparent"
-                                        />
-                                </Grid>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsSelected" Value="True">
-                                        <Setter TargetName="TabItemBorder" Property="BorderThickness" Value="1,1,1,0"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                </Style>
+            Text="{Binding SelectedItem.LastErrorMessage, ElementName=tabs}"
+            Visibility="{Binding SelectedItem.LastErrorMessageVisibility, ElementName=tabs, FallbackValue={x:Static Visibility.Collapsed}}"
+            Foreground="White"
+            Background="Red"
+            />
 
-            </TabControl.Resources>
-            <TabControl.ItemTemplate>
-                <DataTemplate>
-                    <TextBlock Text="{Binding Name}" />
-                </DataTemplate>
-            </TabControl.ItemTemplate>
-            <TabControl.ContentTemplate>
-                <DataTemplate>
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition/>
-                        </Grid.RowDefinitions>
+        <ContentPresenter
+            x:Name="hostViewPresenter"
+            Grid.Row="2"
+            />
 
-                        <StackPanel Orientation="Horizontal">
-                            <Button 
-                                Command="{Binding StopCommand}"
-                                HorizontalContentAlignment="Left"
-                                BorderThickness="0"
-                                ToolTipService.ToolTip="Stop the emulator saving its state"
-                                Height="24"
-                                >
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="24"/>
-                                        <ColumnDefinition/>
-                                    </Grid.ColumnDefinitions>
-                                    <Image
-                                        Source="pack://application:,,,/VsAndroidEm;component/Resources/StopOutline.png"
-                                        Stretch="None"
-                                        VerticalAlignment="Center"
-                                        HorizontalAlignment="Center"
-                                        />
-                                    <TextBlock
-                                        Margin="4,0"
-                                        Grid.Column="1"
-                                        Text="Stop"/>
-                                </Grid>
-                            </Button>
-                            <Button 
-                                Command="{Binding ShutdownCommand}" 
-                                ToolTipService.ToolTip="Shutdown the emulator"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Margin="5,0,0,0"
-                                MinWidth="24">
-                                <Image
-                                    Source="pack://application:,,,/VsAndroidEm;component/Resources/Stop.png"
-                                    Stretch="None"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"                                    
-                                    />
-                            </Button>
-                            <Separator/>
-                            <Button 
-                                Command="{Binding ShowToolBarWindowCommand}" 
-                                ToolTipService.ToolTip="Open/close the emulator toolbar"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Margin="5,0,0,0"
-                                MinWidth="24">
-                                <Image
-                                    Source="pack://application:,,,/VsAndroidEm;component/Resources/SettingsPanel.png"
-                                    Stretch="None"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"                                    
-                                    />
-                            </Button>
-                        </StackPanel>
+    </Grid>
 
-                        <TextBlock
-                            Grid.Row="1"
-                            Text="{Binding LastErrorMessage}"
-                            Visibility="{Binding LastErrorMessageVisibility}"
-                            Foreground="White"
-                            Background="Red"
-                            />
-
-                        <!--<Border
-                            Grid.Row="2">
-                            <Border.Background>
-                                <VisualBrush TileMode="Tile" Viewport="0,0,30,30" ViewportUnits="Absolute" Viewbox="0,0,30,30" ViewboxUnits="Absolute" PresentationOptions:Freeze="True">
-                                    <VisualBrush.Visual>
-                                        <Grid Background="Black">
-                                            <Path Data="M 0 0 L 15 0 L 15 15 L 0 15" Fill="DarkGray" />
-                                            <Path Data="M 15 15 L 30 15 L 30 30 L 15 30" Fill="DarkGray" />
-                                        </Grid>
-                                    </VisualBrush.Visual>
-                                </VisualBrush>
-                            </Border.Background>
-                        </Border>-->
-                        
-                        <ContentPresenter
-                            Grid.Row="2"
-                            Content="{Binding HostView}"
-                            />
-                    </Grid>
-                </DataTemplate>
-            </TabControl.ContentTemplate>
-        </TabControl>
-    </Grid></UserControl>
+</UserControl>

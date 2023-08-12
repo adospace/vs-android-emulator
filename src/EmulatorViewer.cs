@@ -423,6 +423,7 @@ namespace VsAndroidEm
                     else
                     {
                         _childWindowHandle = IntPtr.Zero;
+                        _updateChildWindowSize = true;
                     }
                 }
                 catch (Exception ex)

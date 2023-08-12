@@ -32,13 +32,21 @@ namespace VsAndroidEm
         {
             InitializeComponent();
 
-            _processes.Add(new EmulatorProcess(123, "asda", "ada"));
+            //_processes.Add(new EmulatorProcess(123, "Emu1", "Emu1"));
+            //_processes.Add(new EmulatorProcess(123, "Emu2", "Emu2"));
+            //_processes.Add(new EmulatorProcess(123, "Emu3", "Emu3"));
+            //toolbar.Visibility = _processes.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
 
-            
             tabs.ItemsSource = _processes;
+            tabs.SelectionChanged += (s, e) =>
+            {
+                hostViewPresenter.Content = (tabs.SelectedItem as EmulatorProcess)?.HostView;
+                toolbar.Visibility = hostViewPresenter.Content == null ? Visibility.Collapsed : Visibility.Visible;
+            };
 
             //ThemedDialogColors
             //VsBrushes.ButtonTextKey
+            //VsResourceKeys.
 
             this.Loaded += MainWindow_Loaded;
             
