@@ -41,7 +41,10 @@ namespace VsAndroidEm
             tabs.SelectionChanged += (s, e) =>
             {
                 hostViewPresenter.Content = (tabs.SelectedItem as EmulatorProcess)?.HostView;
-                toolbar.Visibility = hostViewPresenter.Content == null ? Visibility.Collapsed : Visibility.Visible;
+                toolbar.Visibility =
+                    hostViewPresenter.Content == null ? Visibility.Collapsed : Visibility.Visible;
+                landingMessage.Visibility =
+                    hostViewPresenter.Content != null ? Visibility.Collapsed : Visibility.Visible;
             };
 
             //ThemedDialogColors

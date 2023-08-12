@@ -6,10 +6,11 @@
   <Include href="KnownImageIds.vsct"/>
   <Include href="VSGlobals.vsct"/>
 
+  
   <Commands package="VsAndroidEm">
     <!--This section defines the elements the user can interact with, like a menu command or a button or combo box in a toolbar. -->
     <Buttons>
-      <Button guid="VsAndroidEm" id="MyCommand" priority="0x0100" type="Button">
+      <Button guid="VsAndroidEm" id="ShowToolWindowCommand" priority="0x0100" type="Button">
         <Parent guid="VSMainMenu" id="View.DevWindowsGroup.OtherWindows.Group1"/>
         <Icon guid="ImageCatalogGuid" id="ToolWindow" />
         <CommandFlag>IconIsMoniker</CommandFlag>
@@ -22,12 +23,12 @@
   </Commands>
   
   <KeyBindings>
-    <KeyBinding guid="VsAndroidEm" id="MyCommand" editor="guidVSStd97" key1="W" mod1="Control Alt" key2="G" mod2="Control"/>
+    <KeyBinding guid="VsAndroidEm" id="ShowToolWindowCommand" editor="guidVSStd97" key1="W" mod1="Control Alt" key2="E" mod2="Control"/>
   </KeyBindings>
   
   <Symbols>
     <GuidSymbol name="VsAndroidEm" value="{665A0C37-E208-4139-ADBC-B5A36E1AD4EF}">
-      <IDSymbol name="MyCommand" value="0x0100" />
+      <IDSymbol name="ShowToolWindowCommand" value="0x0100" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

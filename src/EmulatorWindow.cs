@@ -38,7 +38,7 @@ namespace VsAndroidEm
             this._emulatorControl.Stop();
         }
 
-        [Guid("789371c0-258b-43da-a1cf-86e5222ae2ed")]
+        [Guid("43F4976D-7ACE-49B8-A177-991E323B74E9")]
         internal class Pane : ToolkitToolWindowPane
         {
             public Pane()

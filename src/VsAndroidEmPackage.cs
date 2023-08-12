@@ -35,7 +35,6 @@ namespace VsAndroidEm
     [ProvideToolWindowVisibility(typeof(EmulatorWindow.Pane), VSConstants.UICONTEXT.NoSolution_string)]
     [ProvideToolWindowVisibility(typeof(EmulatorWindow.Pane), VSConstants.UICONTEXT.EmptySolution_string)]
 
-    //[ProvideOptionPage(typeof(OptionsProvider.AdvancedOptions), "ChatGPT", "ChatGPT Helper Tool", 0, 0, true, new[] { "help", "chat", "gpt" })]
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [Guid(PackageGuids.VsAndroidEmString)]
     public sealed class VsAndroidEmPackage : ToolkitPackage

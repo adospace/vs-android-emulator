@@ -20,6 +20,6 @@ namespace VsAndroidEm
     /// </summary>
     internal sealed partial class PackageIds
     {
-        public const int MyCommand = 0x0100;
+        public const int ShowToolWindowCommand = 0x0100;
     }
 }

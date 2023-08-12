@@ -138,6 +138,14 @@
             Grid.Row="2"
             />
 
+        <TextBlock
+            x:Name="landingMessage"
+            Grid.RowSpan="3"
+            VerticalAlignment="Center"
+            HorizontalAlignment="Center"
+            Text="Start an Android emulator to show it here"
+            />
+
     </Grid>
 
 </UserControl>
