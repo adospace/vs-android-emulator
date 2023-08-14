@@ -8,11 +8,17 @@
              xmlns:vsShell="clr-namespace:Microsoft.Internal.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.15.0"
              xmlns:platform="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.15.0"
              xmlns:PresentationOptions="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
+             xmlns:System="clr-namespace:System;assembly=mscorlib"
+             xmlns:conv="clr-namespace:VsAndroidEm.Converters"
              toolkit:Themes.UseVsTheme="True"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800"
-             Background="{DynamicResource vsShell:VsBrushes.ToolWindowBackgroundKey}"
+             Background="{DynamicResource vsShell:VsBrushes.ToolWindowBackgroundKey}"             
              >
+    <UserControl.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+    </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition MaxHeight="24"/>
@@ -21,32 +27,111 @@
         </Grid.RowDefinitions>
         
         <Grid x:Name="toolbar"
-              Visibility="Collapsed"
-              d:Visibility="Visible"
               >
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="24"/>
-                <ColumnDefinition Width="24"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <ComboBox
-                x:Name="tabs"
+                ItemsSource="{Binding Processes}"
+                SelectedItem="{Binding SelectedEmulator, Mode=TwoWay}"
                 Padding="6,0"
                 BorderThickness="0"
                 >
                 <ComboBox.ItemTemplate>
                     <DataTemplate>
-                        <TextBlock Text="{Binding Name}"/>
+                        <TextBlock 
+                            Text="{Binding FormatName}"/>
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>
+            
+            <Button 
+                Command="{Binding RefreshCommand}"
+                ToolTipService.ToolTip="Refresh emulator list"
+                Grid.Column="1"
+                BorderThickness="0"
+                MinWidth="24"
+                Padding="0"
+                >
+                <Viewbox Width="16 " Height="16" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:System="clr-namespace:System;assembly=mscorlib">
+                    <Rectangle Width="16 " Height="16">
+                        <Rectangle.Resources>
+                            <SolidColorBrush x:Key="canvas" Opacity="0" />
+                            <SolidColorBrush x:Key="light-blue" Color="#005dba" Opacity="1" />
+                        </Rectangle.Resources>
+                        <Rectangle.Fill>
+                            <DrawingBrush Stretch="None">
+                                <DrawingBrush.Drawing>
+                                    <DrawingGroup>
+                                        <DrawingGroup >
+                                            <GeometryDrawing Brush="{DynamicResource canvas}" Geometry="F1M16,16H0V0H16Z" />
+                                        </DrawingGroup>
+                                        <DrawingGroup >
+                                            <GeometryDrawing Brush="{DynamicResource light-blue}" Geometry="F1M15,8A7,7,0,1,1,4.44,2H1.5V1h4l.5.5v4H5V2.829a5.983,5.983,0,1,0,5.57-.244l.43-.9A7.031,7.031,0,0,1,15,8Z" />
+                                        </DrawingGroup>
+                                    </DrawingGroup>
+                                </DrawingBrush.Drawing>
+                            </DrawingBrush>
+                        </Rectangle.Fill>
+                    </Rectangle>
+                </Viewbox>
+            </Button>
 
             <Button 
-                Command="{Binding SelectedItem.StopCommand, ElementName=tabs}"
+                Command="{Binding StartCommand}"
+                Visibility="{Binding SelectedEmulator.IsRunning, Converter={StaticResource InverseBoolToVisibilityConverter}, FallbackValue={x:Static Visibility.Collapsed}}"                
+                ToolTipService.ToolTip="Run the emulator"
+                Grid.Column="2"
+                BorderThickness="0"
+                MinWidth="0"
+                Padding="0"
+                >
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Viewbox Width="16 " Height="16" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:System="clr-namespace:System;assembly=mscorlib">
+                        <Rectangle Width="16 " Height="16">
+                            <Rectangle.Resources>
+                                <SolidColorBrush x:Key="canvas" Opacity="0" />
+                                <SolidColorBrush x:Key="light-green" Color="#1f801f" Opacity="1" />
+                            </Rectangle.Resources>
+                            <Rectangle.Fill>
+                                <DrawingBrush Stretch="None">
+                                    <DrawingBrush.Drawing>
+                                        <DrawingGroup>
+                                            <DrawingGroup >
+                                                <GeometryDrawing Brush="{DynamicResource canvas}" Geometry="F1M16,16H0V0H16Z" />
+                                            </DrawingGroup>
+                                            <DrawingGroup >
+                                                <GeometryDrawing Brush="{DynamicResource light-green}" Geometry="F1M3.777,1.084,3,1.5v12l.777.416,9-6V7.084Z" />
+                                            </DrawingGroup>
+                                        </DrawingGroup>
+                                    </DrawingBrush.Drawing>
+                                </DrawingBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                    </Viewbox>
+
+                    <TextBlock
+                        Margin="0,0,4,0"
+                        Grid.Column="1"
+                        Text="Start"/>
+                </Grid>
+            </Button>
+
+            <Button 
+                Command="{Binding StopCommand}"
+                Visibility="{Binding SelectedEmulator.IsRunning, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue={x:Static Visibility.Collapsed}}"
                 ToolTipService.ToolTip="Stop the emulator saving its state"
-                Grid.Column="1"
+                Grid.Column="3"
                 BorderThickness="0"
                 MinWidth="0"
                 Padding="0"
@@ -68,13 +153,14 @@
                         Text="Stop"/>
                 </Grid>
             </Button>
-            
+
             <Button 
-                Command="{Binding SelectedItem.ShutdownCommand, ElementName=tabs}"
+                Command="{Binding ShutdownCommand}"
+                Visibility="{Binding SelectedEmulator.IsRunning, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue={x:Static Visibility.Collapsed}}"                
                 ToolTipService.ToolTip="Shutdown the emulator without saving its state"
-                Grid.Column="2"
+                Grid.Column="4"
                 BorderThickness="0"
-                MinWidth="0"
+                MinWidth="24"
                 Padding="0"
                 >
                 <Image
@@ -86,11 +172,12 @@
             </Button>
 
             <Button 
-                Command="{Binding SelectedItem.ShowToolBarWindowCommand, ElementName=tabs}"
+                Command="{Binding ShowToolBarWindowCommand}"
+                Visibility="{Binding SelectedEmulator.IsRunning, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue={x:Static Visibility.Collapsed}}"                
                 ToolTipService.ToolTip="Show/Hide emulator toolbox"
-                Grid.Column="3"
+                Grid.Column="5"
                 BorderThickness="0"
-                MinWidth="0"
+                MinWidth="24"
                 Padding="0"
                 >
                 <Viewbox Width="16 " Height="16" xmlns:System="clr-namespace:System;assembly=mscorlib">
@@ -105,10 +192,10 @@
                             <DrawingBrush Stretch="None">
                                 <DrawingBrush.Drawing>
                                     <DrawingGroup>
-                                        <DrawingGroup x:Name="canvas">
+                                        <DrawingGroup >
                                             <GeometryDrawing Brush="{DynamicResource canvas}" Geometry="F1M16,16H0V0H16Z" />
                                         </DrawingGroup>
-                                        <DrawingGroup x:Name="level_1">
+                                        <DrawingGroup >
                                             <DrawingGroup Opacity="{DynamicResource cls-1}">
                                                 <GeometryDrawing Brush="{DynamicResource light-defaultgrey-10}" Geometry="F1M11.5,5v8h-7V5Z" />
                                                 <GeometryDrawing Brush="{DynamicResource light-defaultgrey}" Geometry="F1M11.5,5h-7L4,5.5v8l.5.5h7l.5-.5v-8ZM11,13H5V6h6Z" />
@@ -127,24 +214,27 @@
 
         <TextBlock
             Grid.Row="1"
-            Text="{Binding SelectedItem.LastErrorMessage, ElementName=tabs}"
-            Visibility="{Binding SelectedItem.LastErrorMessageVisibility, ElementName=tabs, FallbackValue={x:Static Visibility.Collapsed}}"
+            Text="{Binding SelectedEmulator.LastErrorMessage}"
+            TextWrapping="Wrap"
+            Visibility="{Binding SelectedEmulator.LastErrorMessageVisibility, FallbackValue={x:Static Visibility.Collapsed}}"
             Foreground="White"
-            Background="Red"
-            />
-
+            Background="DarkRed"
+            Padding="4,0"
+            />            
+        
+        
         <ContentPresenter
-            x:Name="hostViewPresenter"
             Grid.Row="2"
+            Content="{Binding SelectedEmulator.HostView}"
             />
 
-        <TextBlock
+        <!--<TextBlock
             x:Name="landingMessage"
             Grid.RowSpan="3"
             VerticalAlignment="Center"
             HorizontalAlignment="Center"
             Text="Start an Android emulator to show it here"
-            />
+            />-->
 
     </Grid>
 

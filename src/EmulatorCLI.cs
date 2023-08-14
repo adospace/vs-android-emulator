@@ -11,27 +11,54 @@ namespace VsAndroidEm;
 
 class EmulatorCLI
 {
-    private static async Task<CommandResult> ExecuteCommandAsync(string command)
+    private static async Task<CommandResult> ExecuteCommandAsync(params string[] command)
     {
-        var adbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-            "Android", "android-sdk", "platform-tools", "emulator.exe");
+        var emulatorDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            "Android", "android-sdk", "emulator");
+        var emulatorPath = Path.Combine(emulatorDirectory, "emulator.exe");
 
-        return await Cli.Wrap(adbPath)
-            .WithArguments(command.Split(' '))
+        return await Cli.Wrap(emulatorPath)
+            .WithArguments(command)
             .WithValidation(CommandResultValidation.None)
+            .WithWorkingDirectory(emulatorDirectory)
             .ExecuteAsync();
     }
 
-    private static async Task<BufferedCommandResult> ExecuteBufferedCommandAsync(string command)
+    private static async Task<BufferedCommandResult> ExecuteBufferedCommandAsync(params string[] command)
     {
-        var adbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-            "Android", "android-sdk", "platform-tools", "emulator.exe");
+        ///"C:\Program Files (x86)\Android\android-sdk\emulator"
+        var emulatorDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            "Android", "android-sdk", "emulator");
+        var emulatorPath = Path.Combine(emulatorDirectory, "emulator.exe");
 
-        return await Cli.Wrap(adbPath)
-            .WithArguments(new[] { command })
+        var result = await Cli.Wrap(emulatorPath)
+            .WithArguments(command)
             .WithValidation(CommandResultValidation.None)
+            .WithWorkingDirectory(emulatorDirectory)
             .ExecuteBufferedAsync();
+
+        System.Diagnostics.Debug.WriteLine(result.StandardError);
+
+        System.Diagnostics.Debug.WriteLine(result.StandardOutput);
+
+        return result;
     }
 
+    public static void RunEmulator(string avdName)
+    {
+        Task.Run(async () => await ExecuteBufferedCommandAsync("-avd", avdName));
+    }
+
+    public static async Task<string[]> GetEmulatorListAsync()
+    {
+        var result = await ExecuteBufferedCommandAsync("-list-avds");
+
+        if (result.ExitCode == 0)
+        {
+            return result.StandardOutput.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        return null;
+    }
 
 }

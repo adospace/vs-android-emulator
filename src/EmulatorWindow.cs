@@ -33,9 +33,9 @@ namespace VsAndroidEm
             base.SetPane(pane, toolWindowId);
         }
 
-        private void Pane_Closing(object sender, EventArgs e)
+        private async void Pane_Closing(object sender, EventArgs e)
         {
-            this._emulatorControl.Stop();
+            await this._emulatorControl.ViewModel.StopAsync();
         }
 
         [Guid("43F4976D-7ACE-49B8-A177-991E323B74E9")]

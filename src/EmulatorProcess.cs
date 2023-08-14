@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms.Integration;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace VsAndroidEm
 {
@@ -20,41 +21,65 @@ namespace VsAndroidEm
         private readonly EmulatorViewer _viewer = new();
         private bool _isBusy;
 
-        public EmulatorProcess(int processId, string name, string emulatorName)
+        public EmulatorProcess(string name)
         {
-            ProcessId = processId;
             Name = name;
-            EmulatorName = emulatorName;
-            StartCommand = new RelayCommand(Start, () => !IsBusy);
-            StopCommand = new AsyncRelayCommand(StopAsync, () => !IsBusy);
-            ShowToolBarWindowCommand = new RelayCommand(ShowToolWindow, () => !IsBusy);
-            ShutdownCommand = new AsyncRelayCommand(ShutdownAsync, () => !IsBusy);
+            StartCommand = new RelayCommand(Start, () => !IsRunning);
+            StopCommand = new AsyncRelayCommand(StopAsync, () => IsRunning);
+            ShowToolBarWindowCommand = new RelayCommand(ShowToolWindow, () => IsRunning);
+            ShutdownCommand = new AsyncRelayCommand(ShutdownAsync, () => IsRunning);
 
             HostView = new WindowsFormsHost
             {
                 Child = _viewer,
             };
 
-            _viewer.ProcessExited += (s, e) => ProcessExited?.Invoke(this, e);
+            _viewer.ProcessAttached += (s, e) =>
+            {
+                Dispatcher.CurrentDispatcher.BeginInvoke(() =>
+                {
+                    OnPropertyChanged(nameof(IsStarted));
+                    OnPropertyChanged(nameof(IsRunning));
+                    OnPropertyChanged(nameof(FormatName));
+                    OnPropertyChanged(nameof(IsReadyToAcceptCommand));
+
+                    CommandManager.InvalidateRequerySuggested();
+
+                    ProcessAttached?.Invoke(this, e);
+                });
+            };
+
+            _viewer.ProcessExited += (s, e) =>
+            {
+                Dispatcher.CurrentDispatcher.BeginInvoke(() =>
+                {
+                    OnPropertyChanged(nameof(IsStarted));
+                    OnPropertyChanged(nameof(IsRunning));
+                    OnPropertyChanged(nameof(FormatName));
+                    OnPropertyChanged(nameof(IsReadyToAcceptCommand));
+
+                    CommandManager.InvalidateRequerySuggested();
+
+                    ProcessExited?.Invoke(this, e);
+                });
+            };
+
             _viewer.ErrorRaised += (s, e) =>
             {
-                OnPropertyChanged("LastErrorMessage");
-                OnPropertyChanged("LastErrorMessageVisibility");                
-                ErrorRaised?.Invoke(this, e);
+                Dispatcher.CurrentDispatcher.BeginInvoke(() =>
+                {
+                    OnPropertyChanged(nameof(IsStarted));
+                    OnPropertyChanged(nameof(FormatName));
+                    OnPropertyChanged(nameof(IsRunning));
+                    OnPropertyChanged(nameof(IsReadyToAcceptCommand));
+                    OnPropertyChanged(nameof(LastErrorMessage));
+                    OnPropertyChanged(nameof(LastErrorMessageVisibility));
+
+                    CommandManager.InvalidateRequerySuggested();
+
+                    ErrorRaised?.Invoke(this, e);
+                });
             };
-        }
-
-        public static EmulatorProcess CreateFromIniFile(string iniFilePath)
-        {
-            var processId = int.Parse(System.IO.Path.GetFileNameWithoutExtension(iniFilePath).Substring(4));
-            var iniValues = File.ReadAllLines(iniFilePath)
-                .Select(_ => _.Split('='))
-                .ToDictionary(_ => _[0], _ => _[1]);
-
-            var avdName = iniValues["avd.name"];
-            var emulatorName = $"emulator-{iniValues["port.serial"]}";
-
-            return new EmulatorProcess(processId, avdName, emulatorName);
         }
 
         public ICommand StartCommand { get; }
@@ -62,15 +87,32 @@ namespace VsAndroidEm
         public ICommand StopCommand { get; }
         public ICommand ShutdownCommand { get; }
 
-        public int ProcessId { get; }
+        //int _processId;
+        //public int ProcessId
+        //{
+        //    get => _processId;
+        //    set => SetProperty(ref _processId, value);
+        //}
+        public int ProcessId { get; private set; }
 
         public string Name { get; }
 
-        public string EmulatorName { get; }
+        public string FormatName => $"{Name}{(IsStarted ? "(Running)" : string.Empty)}";
+
+        //string _emulatorName;
+        //public string EmulatorName
+        //{
+        //    get => _emulatorName;
+        //    set => SetProperty(ref _emulatorName, value);
+        //}
 
         public WindowsFormsHost HostView { get; }
 
         public bool IsStarted => _viewer.IsStarted;
+
+        public bool IsReadyToAcceptCommand => _viewer.IsReadyToAcceptCommand;
+
+        public bool IsRunning => !IsBusy && IsStarted && IsReadyToAcceptCommand;
 
         public string LastErrorMessage => _viewer.LastErrorMessage;
 
@@ -88,6 +130,8 @@ namespace VsAndroidEm
             => !string.IsNullOrEmpty(_viewer.LastErrorMessage) ? Visibility.Visible : Visibility.Collapsed;
 
         public event EventHandler ProcessExited;
+        
+        public event EventHandler ProcessAttached;
 
         public event EventHandler ErrorRaised;
 
@@ -96,20 +140,29 @@ namespace VsAndroidEm
             _viewer.ShowToolWindow = !_viewer.ShowToolWindow;
         }
 
-        public void Start()
+        public void Monitor(int processId, string emulatorName)
         {
             IsBusy = true;
+            ProcessId = processId;
 
-            _viewer.Start(ProcessId, EmulatorName);
+            _viewer.Start(processId, emulatorName);
 
             IsBusy = false;
         }
+
+        public void Start()
+        {
+            EmulatorCLI.RunEmulator(Name);
+        }
+
 
         public async Task StopAsync()
         {
             IsBusy = true;
 
             await _viewer.StopAsync();
+
+            ProcessId = 0;
 
             IsBusy = false;
         }

@@ -36,9 +36,10 @@
             // 
             // childContainer
             // 
+            this.childContainer.BackColor = System.Drawing.Color.Gray;
             this.childContainer.Location = new System.Drawing.Point(46, 38);
             this.childContainer.Name = "childContainer";
-            this.childContainer.Size = new System.Drawing.Size(259, 212);
+            this.childContainer.Size = new System.Drawing.Size(453, 425);
             this.childContainer.TabIndex = 0;
             // 
             // toolContainer

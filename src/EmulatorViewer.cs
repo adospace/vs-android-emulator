@@ -1,4 +1,5 @@
-﻿using Microsoft.VisualStudio.RpcContracts;
+﻿using Microsoft.Build.Framework.XamlTypes;
+using Microsoft.VisualStudio.RpcContracts;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -27,6 +28,7 @@ namespace VsAndroidEm
         private bool _updateChildWindowSize = true;
         private Size _lastChildWindowSize;
         private Size _toolWindowSize;
+        private Size _emulatorFrameSize;
 
         private bool _inError;
 
@@ -146,6 +148,8 @@ namespace VsAndroidEm
             _updateChildWindowSize = false;
             _toolWindowHandle = IntPtr.Zero;
             _toolWindowVisible = false;
+            _emulatorFrameSize = default;
+            _lastChildWindowSize = default;
 
             ShowToolWindow = false;
             LastErrorMessage = null;
@@ -157,7 +161,11 @@ namespace VsAndroidEm
 
         public bool ShowToolWindow { get; set; }
 
+        public bool IsReadyToAcceptCommand => _process == null || _hosted;
+
         public event EventHandler ProcessExited;
+
+        public event EventHandler ProcessAttached;
 
         public event EventHandler ErrorRaised;
 
@@ -250,11 +258,13 @@ namespace VsAndroidEm
 
                     if (!Win32API.GetWindowRect(_childWindowHandle, out var childWindowRect))
                     {
-                        throw new InvalidOperationException($"Unable to get initial child window rect ({GetLastErrorMessage()})");
+                        _childWindowHandle = IntPtr.Zero;
+                        return;
+                        //throw new InvalidOperationException($"Unable to get initial child window rect ({GetLastErrorMessage()})");
                     }
 
                     _lastChildWindowSize = new Size(childWindowRect.Right - childWindowRect.Left, childWindowRect.Bottom - childWindowRect.Top);
-                    
+
                     childContainer.Width = _lastChildWindowSize.Width;
                     childContainer.Height = _lastChildWindowSize.Height;
                     childContainer.Left = Math.Max(0, (emulatorContainer.Width - childContainer.Width) / 2);
@@ -323,6 +333,8 @@ namespace VsAndroidEm
 
                 Debug.WriteLine($"[{_emulatorName}] MainWindow attached");
 
+                ProcessAttached?.Invoke(this, EventArgs.Empty);
+
                 _hosted = true;
             }
 
@@ -372,7 +384,7 @@ namespace VsAndroidEm
             {
                 try
                 {
-                    if (!Win32API.SetWindowPos(_mainWindowHandle, IntPtr.Zero, 0, 0, emulatorContainer.Width, emulatorContainer.Height, Win32API.SetWindowPosFlags.ShowWindow))
+                    if (!Win32API.SetWindowPos(_mainWindowHandle, IntPtr.Zero, 0, 0, emulatorContainer.Width + _emulatorFrameSize.Width, emulatorContainer.Height + _emulatorFrameSize.Height, Win32API.SetWindowPosFlags.ShowWindow))
                     {
                         throw new InvalidOperationException($"Unable to set main window position ({GetLastErrorMessage()})");
                     }
@@ -397,7 +409,8 @@ namespace VsAndroidEm
             {
                 try
                 {
-                    if (Win32API.GetWindowRect(_childWindowHandle, out var childWindowRect))
+                    if (Win32API.GetWindowRect(_childWindowHandle, out var childWindowRect) &&
+                        Win32API.GetWindowRect(_mainWindowHandle, out var mainWindowWindowRect))
                     {
                         var currentChildWindowSize = new Size(childWindowRect.Right - childWindowRect.Left, childWindowRect.Bottom - childWindowRect.Top);
 
@@ -410,12 +423,21 @@ namespace VsAndroidEm
                             childContainer.Left = Math.Max(0, (emulatorContainer.Width - childContainer.Width) / 2);
                             childContainer.Top = Math.Max(0, (emulatorContainer.Height - childContainer.Height) / 2);
 
+                            _emulatorFrameSize = new Size(childWindowRect.Left - mainWindowWindowRect.Left, childWindowRect.Top - mainWindowWindowRect.Top);
+
+                            //childInternalContainer.Left = -_emulatorFrameSize.Width;
+                            //childInternalContainer.Top = -_emulatorFrameSize.Height;
+                            //childInternalContainer.Width = -childInternalContainer.Left + childContainer.Width;
+                            //childInternalContainer.Height = -childInternalContainer.Top + childContainer.Height;
+
                             Debug.WriteLine($"[{_emulatorName}] MainWindow position adjusted");
 
                             Win32API.ShowWindow(_process.MainWindowHandle, Win32API.SW_SHOW);
                             Win32API.ShowWindow(_toolWindowHandle, Win32API.SW_SHOW);
 
                             _updateChildWindowSize = false;
+
+                            ProcessAttached?.Invoke(this, EventArgs.Empty);
                         }
 
                         _timerUpdate.Interval = 100;
@@ -451,7 +473,7 @@ namespace VsAndroidEm
             Win32API.FormatMessage(Win32API.FORMAT_MESSAGE_FROM_SYSTEM | Win32API.FORMAT_MESSAGE_IGNORE_INSERTS,
                 IntPtr.Zero, errorCode, 0, messageBuffer, (uint)messageBuffer.Capacity, IntPtr.Zero);
 
-            return $"Error Code: {errorCode} - {messageBuffer}";
+            return $"Error Code: {errorCode} - {messageBuffer.ToString().TrimEnd('\r', '\n')}";
         }
 
         protected override void OnResize(EventArgs e)

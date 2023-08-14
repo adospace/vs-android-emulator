@@ -3,6 +3,7 @@ using Microsoft.VisualStudio.Shell;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -25,8 +26,8 @@ namespace VsAndroidEm
     /// </summary>
     public partial class EmulatorControl : UserControl
     {
-        public ObservableCollection<EmulatorProcess> _processes = new ObservableCollection<EmulatorProcess>();
-        private DispatcherTimer _timer;
+        //public ObservableCollection<EmulatorProcess> _processes = new ObservableCollection<EmulatorProcess>();
+        //private DispatcherTimer _timer;
 
         public EmulatorControl()
         {
@@ -37,15 +38,20 @@ namespace VsAndroidEm
             //_processes.Add(new EmulatorProcess(123, "Emu3", "Emu3"));
             //toolbar.Visibility = _processes.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
 
-            tabs.ItemsSource = _processes;
-            tabs.SelectionChanged += (s, e) =>
+            if (!DesignerProperties.GetIsInDesignMode(this))
             {
-                hostViewPresenter.Content = (tabs.SelectedItem as EmulatorProcess)?.HostView;
-                toolbar.Visibility =
-                    hostViewPresenter.Content == null ? Visibility.Collapsed : Visibility.Visible;
-                landingMessage.Visibility =
-                    hostViewPresenter.Content != null ? Visibility.Collapsed : Visibility.Visible;
-            };
+                DataContext = new EmulatorControlViewModel();
+            }
+
+            //tabs.ItemsSource = _processes;
+            //tabs.SelectionChanged += (s, e) =>
+            //{
+            //    hostViewPresenter.Content = (tabs.SelectedItem as EmulatorProcess)?.HostView;
+            //    toolbar.Visibility =
+            //        hostViewPresenter.Content == null ? Visibility.Collapsed : Visibility.Visible;
+            //    landingMessage.Visibility =
+            //        hostViewPresenter.Content != null ? Visibility.Collapsed : Visibility.Visible;
+            //};
 
             //ThemedDialogColors
             //VsBrushes.ButtonTextKey
@@ -55,99 +61,80 @@ namespace VsAndroidEm
             
         }
 
-        private void Timer_Tick(object sender, EventArgs e)
+        public EmulatorControlViewModel ViewModel => (EmulatorControlViewModel)DataContext;
+
+        //private void Timer_Tick(object sender, EventArgs e)
+        //{
+        //    var avdRunningFolderFiles = Directory.GetFiles(System.IO.Path.Combine(
+        //        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "temp", "avd", "running"), "*.ini");
+
+        //    foreach (var file in avdRunningFolderFiles)
+        //    {
+        //        var processId = int.Parse(System.IO.Path.GetFileNameWithoutExtension(file).Substring(4)); //pid_
+
+        //        if (_processes.Any(_ => _.ProcessId == processId))
+        //        {
+        //            continue;
+        //        }
+
+
+        //        if (!Win32API.CheckProcessIsRunning(processId))
+        //        {
+        //            continue;
+        //        }
+
+        //        try
+        //        {
+        //            var newEmulatorDetected = EmulatorProcess.CreateFromIniFile(file);
+
+        //            newEmulatorDetected.ProcessExited += Emulator_ProcessExited;
+        //            newEmulatorDetected.ErrorRaised += Emulator_ErrorRaised;
+
+        //            newEmulatorDetected.Start();
+
+        //            _processes.Add(newEmulatorDetected);
+
+        //            tabs.SelectedItem = newEmulatorDetected;
+        //        }
+        //        catch(Exception ex)
+        //        {
+        //            System.Diagnostics.Debug.WriteLine(ex);
+        //        }
+
+        //    }
+        //}
+
+        //private void Emulator_ErrorRaised(object sender, EventArgs e)
+        //{
+
+        //}
+
+        //private async void Emulator_ProcessExited(object sender, EventArgs e)
+        //{
+        //    try
+        //    {
+        //        var emulatorProcess = (EmulatorProcess)sender;
+        //        await emulatorProcess.StopAsync();
+
+        //        _processes.Remove(emulatorProcess);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        System.Diagnostics.Debug.WriteLine(ex);
+        //    }
+        //}
+
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            var avdRunningFolderFiles = Directory.GetFiles(System.IO.Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "temp", "avd", "running"), "*.ini");
-
-            foreach (var file in avdRunningFolderFiles)
-            {
-                var processId = int.Parse(System.IO.Path.GetFileNameWithoutExtension(file).Substring(4)); //pid_
-
-                if (_processes.Any(_ => _.ProcessId == processId))
-                {
-                    continue;
-                }
-
-
-                if (!Win32API.CheckProcessIsRunning(processId))
-                {
-                    continue;
-                }
-
-                try
-                {
-                    var newEmulatorDetected = EmulatorProcess.CreateFromIniFile(file);
-
-                    newEmulatorDetected.ProcessExited += Emulator_ProcessExited;
-                    newEmulatorDetected.ErrorRaised += Emulator_ErrorRaised;
-
-                    newEmulatorDetected.Start();
-
-                    _processes.Add(newEmulatorDetected);
-
-                    tabs.SelectedItem = newEmulatorDetected;
-                }
-                catch(Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine(ex);
-                }
-
-            }
+            await ViewModel.RefreshAsync();
+            //_timer = new DispatcherTimer
+            //{
+            //    Interval = TimeSpan.FromMilliseconds(500)
+            //};
+            //_timer.Tick += Timer_Tick;
+            //_timer.Start();
         }
 
-        private void Emulator_ErrorRaised(object sender, EventArgs e)
-        {
 
-        }
-
-        private async void Emulator_ProcessExited(object sender, EventArgs e)
-        {
-            try
-            {
-                var emulatorProcess = (EmulatorProcess)sender;
-                await emulatorProcess.StopAsync();
-
-                _processes.Remove(emulatorProcess);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(ex);
-            }
-        }
-
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
-        {
-            _timer = new DispatcherTimer
-            {
-                Interval = TimeSpan.FromMilliseconds(500)
-            };
-            _timer.Tick += Timer_Tick;
-            _timer.Start();
-        }
-
-        internal async void Stop()
-        {
-            try
-            {
-                _timer.Stop();
-
-                foreach (var process in _processes.ToArray())
-                {
-                    await process.StopAsync();
-
-                    var avdRunningFolderFiles = System.IO.Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "temp", "avd", "running");
-
-                    var processIniFile = System.IO.Path.Combine(avdRunningFolderFiles, $"pid_{process.ProcessId}.ini");
-
-                    File.Delete(processIniFile);
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(ex);
-            }
-        }
     }
 }

@@ -23,11 +23,11 @@
   </Commands>
   
   <KeyBindings>
-    <KeyBinding guid="VsAndroidEm" id="ShowToolWindowCommand" editor="guidVSStd97" key1="W" mod1="Control Alt" key2="E" mod2="Control"/>
+    <KeyBinding guid="VsAndroidEm" id="ShowToolWindowCommand" editor="guidVSStd97" key1="W" mod1="Control Alt" key2="K" mod2="Control"/>
   </KeyBindings>
   
   <Symbols>
-    <GuidSymbol name="VsAndroidEm" value="{665A0C37-E208-4139-ADBC-B5A36E1AD4EF}">
+    <GuidSymbol name="VsAndroidEm" value="{665a0c37-e208-4139-adbc-b5a36e1ad4ef}">
       <IDSymbol name="ShowToolWindowCommand" value="0x0100" />
     </GuidSymbol>
   </Symbols>
