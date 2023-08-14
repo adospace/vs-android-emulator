@@ -289,7 +289,7 @@ namespace VsAndroidEm
                         throw new InvalidOperationException($"Unable to set main window style ({GetLastErrorMessage()})");
                     }
 
-                    if (IntPtr.Zero == Win32API.SetParent(_process.MainWindowHandle, childContainer.Handle))
+                    if (IntPtr.Zero == Win32API.SetParent(_process.MainWindowHandle, childInternalContainer.Handle))
                     {
                         throw new InvalidOperationException($"Unable to relocate emulator main window ({GetLastErrorMessage()})");
                     }
@@ -425,10 +425,10 @@ namespace VsAndroidEm
 
                             _emulatorFrameSize = new Size(childWindowRect.Left - mainWindowWindowRect.Left, childWindowRect.Top - mainWindowWindowRect.Top);
 
-                            //childInternalContainer.Left = -_emulatorFrameSize.Width;
-                            //childInternalContainer.Top = -_emulatorFrameSize.Height;
-                            //childInternalContainer.Width = -childInternalContainer.Left + childContainer.Width;
-                            //childInternalContainer.Height = -childInternalContainer.Top + childContainer.Height;
+                            childInternalContainer.Left = -_emulatorFrameSize.Width;
+                            childInternalContainer.Top = -_emulatorFrameSize.Height;
+                            childInternalContainer.Width = -childInternalContainer.Left + childContainer.Width;
+                            childInternalContainer.Height = -childInternalContainer.Top + childContainer.Height;
 
                             Debug.WriteLine($"[{_emulatorName}] MainWindow position adjusted");
 

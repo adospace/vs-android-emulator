@@ -31,12 +31,15 @@
             this.childContainer = new System.Windows.Forms.Panel();
             this.toolContainer = new System.Windows.Forms.Panel();
             this.emulatorContainer = new System.Windows.Forms.Panel();
+            this.childInternalContainer = new System.Windows.Forms.Panel();
+            this.childContainer.SuspendLayout();
             this.emulatorContainer.SuspendLayout();
             this.SuspendLayout();
             // 
             // childContainer
             // 
-            this.childContainer.BackColor = System.Drawing.Color.Gray;
+            this.childContainer.BackColor = System.Drawing.Color.Transparent;
+            this.childContainer.Controls.Add(this.childInternalContainer);
             this.childContainer.Location = new System.Drawing.Point(46, 38);
             this.childContainer.Name = "childContainer";
             this.childContainer.Size = new System.Drawing.Size(453, 425);
@@ -61,6 +64,14 @@
             this.emulatorContainer.Size = new System.Drawing.Size(740, 675);
             this.emulatorContainer.TabIndex = 2;
             // 
+            // childInternalContainer
+            // 
+            this.childInternalContainer.BackColor = System.Drawing.Color.Transparent;
+            this.childInternalContainer.Location = new System.Drawing.Point(86, 57);
+            this.childInternalContainer.Name = "childInternalContainer";
+            this.childInternalContainer.Size = new System.Drawing.Size(200, 100);
+            this.childInternalContainer.TabIndex = 0;
+            // 
             // EmulatorViewer
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -69,6 +80,7 @@
             this.Controls.Add(this.toolContainer);
             this.Name = "EmulatorViewer";
             this.Size = new System.Drawing.Size(740, 675);
+            this.childContainer.ResumeLayout(false);
             this.emulatorContainer.ResumeLayout(false);
             this.ResumeLayout(false);
 
@@ -79,5 +91,6 @@
         private System.Windows.Forms.Panel childContainer;
         private System.Windows.Forms.Panel toolContainer;
         private System.Windows.Forms.Panel emulatorContainer;
+        private System.Windows.Forms.Panel childInternalContainer;
     }
 }
