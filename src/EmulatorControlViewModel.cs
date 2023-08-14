@@ -63,8 +63,15 @@ public class EmulatorControlViewModel : ObservableObject
 
     private void Timer_Tick(object sender, EventArgs e)
     {
-        var avdRunningFolderFiles = Directory.GetFiles(System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "temp", "avd", "running"), "*.ini");
+        var avdRunningFolder = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "temp", "avd", "running");
+
+        if (!Directory.Exists(avdRunningFolder))
+        {
+            return;
+        }
+
+        var avdRunningFolderFiles = Directory.GetFiles(avdRunningFolder, "*.ini");
 
         foreach (var file in avdRunningFolderFiles)
         {
