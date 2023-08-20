@@ -1,6 +1,12 @@
 # vs-android-emulator
 This extension embeds the Android emulators running on your system inside a tool window of Visual Studio.
 
+## Download from Visual Studio Marketplace
+
+https://marketplace.visualstudio.com/items?itemName=adospace.vs-android-em
+
+## Features
+
 It automatically detects current emulators and monitors new ones as they are activated. It can handle more than one emulator window, rapidly switching between them.
 
 Main features:
