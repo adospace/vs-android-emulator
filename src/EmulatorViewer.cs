@@ -32,14 +32,15 @@ namespace VsAndroidEm
 
         private bool _inError;
 
-        private static readonly SemaphoreSlim _lockSemaphore = new SemaphoreSlim(1, 1);
+        private static readonly SemaphoreSlim _lockSemaphore = new(1, 1);
+
+        private static readonly EmulatorMonitor _emulatorMonitor = new();
 
         System.Windows.Forms.Timer _timerUpdate;
 
         public EmulatorViewer()
         {
             InitializeComponent();
-
         }
 
         public void Start(int processId, string emulatorName)
@@ -109,6 +110,20 @@ namespace VsAndroidEm
 
         private async Task StopCoreAsync(bool closeEmulatorProcess, bool shutdownEmulator = false)
         {
+            if (closeEmulatorProcess)
+            {
+                var emulatorInfo = _emulatorMonitor.GetExistingEmulatorInfo(_process.Id);
+
+                if (emulatorInfo != null)
+                {
+                    var visualStudioProcessId = Process.GetCurrentProcess().Id;
+                    if (emulatorInfo.VisualStudioProcessId != visualStudioProcessId)
+                    {
+                        closeEmulatorProcess = false;
+                    }
+                }
+            }
+
             if (_process != null && closeEmulatorProcess)
             {
                 // Command to gracefully close the emulator
@@ -145,7 +160,7 @@ namespace VsAndroidEm
             _childWindowHandle = IntPtr.Zero;
             _hosted = false;
             _inError = false;
-            _updateChildWindowSize = false;
+            _updateChildWindowSize = true;
             _toolWindowHandle = IntPtr.Zero;
             _toolWindowVisible = false;
             _emulatorFrameSize = default;
@@ -163,11 +178,17 @@ namespace VsAndroidEm
 
         public bool IsReadyToAcceptCommand => _process == null || _hosted;
 
+        public bool CanBeAttached { get; set; }
+
+        public bool ForceAttachment { get; set; }
+
         public event EventHandler ProcessExited;
 
         public event EventHandler ProcessAttached;
 
         public event EventHandler ErrorRaised;
+
+        public event EventHandler CanBeAttachedChanged;
 
         private void TimerUpdate_Tick(object sender, EventArgs e)
         {
@@ -194,6 +215,55 @@ namespace VsAndroidEm
                 ProcessExited?.Invoke(this, EventArgs.Empty);
 
                 return;
+            }
+
+            var emulatorInfo = _emulatorMonitor.GetExistingEmulatorInfo(_process.Id);
+
+            if (emulatorInfo != null)
+            {
+                var visualStudioProcessId = Process.GetCurrentProcess().Id;
+                if (emulatorInfo.VisualStudioProcessId == visualStudioProcessId)
+                {
+                    CanBeAttached = false;
+                    ForceAttachment = false;
+                }
+                else
+                {
+                    if (CanBeAttached && ForceAttachment)
+                    {
+                        _mainWindowHandle = new IntPtr(emulatorInfo.MainWindowHandle);
+                        _childWindowHandle = new IntPtr(emulatorInfo.ChildWindowHandle);
+                        _toolWindowHandle = new IntPtr(emulatorInfo.ToolWindowHandle);
+                        CanBeAttached = false;
+                        ForceAttachment = true;
+                        CanBeAttachedChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    else if (!CanBeAttached)
+                    {
+                        _mainWindowHandle = IntPtr.Zero;
+                        _childWindowHandle = IntPtr.Zero;
+                        _hosted = false;
+                        _inError = false;
+                        _updateChildWindowSize = true;
+                        _toolWindowHandle = IntPtr.Zero;
+                        _toolWindowVisible = false;
+                        _emulatorFrameSize = default;
+                        _lastChildWindowSize = default;
+
+                        ShowToolWindow = false;
+                        LastErrorMessage = null;
+
+                        CanBeAttached = true;
+                        ForceAttachment = false;
+                        CanBeAttachedChanged?.Invoke(this, EventArgs.Empty);
+
+                        return;
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
             }
 
             if (_mainWindowHandle == IntPtr.Zero)
@@ -231,30 +301,33 @@ namespace VsAndroidEm
             {
                 try
                 {
-                    var allProcessWindows = Win32API.EnumerateProcessWindowHandles(_process.Id)
-                        .Where(_ => _ != _process.MainWindowHandle)
-                        .ToList();
-
-                    foreach (var processWindowHandle in allProcessWindows)
+                    if (_toolWindowHandle ==  IntPtr.Zero)
                     {
-                        StringBuilder className = new(256);
+                        var allProcessWindows = Win32API.EnumerateProcessWindowHandles(_process.Id)
+                            .Where(_ => _ != _mainWindowHandle)
+                            .ToList();
 
-                        if (0 == Win32API.GetClassName(processWindowHandle, className, className.Capacity))
+                        foreach (var processWindowHandle in allProcessWindows)
                         {
-                            throw new InvalidOperationException($"Unable to get window class name ({GetLastErrorMessage()})");
+                            StringBuilder className = new(256);
+
+                            if (0 == Win32API.GetClassName(processWindowHandle, className, className.Capacity))
+                            {
+                                throw new InvalidOperationException($"Unable to get window class name ({GetLastErrorMessage()})");
+                            }
+
+                            if (className.ToString() == "Qt5QWindowToolSaveBits")
+                            {
+                                _toolWindowHandle = processWindowHandle;
+                                break;
+                            }
                         }
 
-                        if (className.ToString() == "Qt5QWindowToolSaveBits")
-                        {
-                            _toolWindowHandle = processWindowHandle;
-                            break;
-                        }
+                        allProcessWindows
+                            .Where(_ => _ != _toolWindowHandle)
+                            .ToList()
+                            .ForEach(handle => Win32API.ShowWindow(handle, Win32API.SW_HIDE));
                     }
-
-                    allProcessWindows
-                        .Where(_ => _ != _toolWindowHandle)
-                        .ToList()
-                        .ForEach(handle => Win32API.ShowWindow(handle, Win32API.SW_HIDE));
 
                     if (!Win32API.GetWindowRect(_childWindowHandle, out var childWindowRect))
                     {
@@ -270,12 +343,12 @@ namespace VsAndroidEm
                     childContainer.Left = Math.Max(0, (emulatorContainer.Width - childContainer.Width) / 2);
                     childContainer.Top = Math.Max(0, (emulatorContainer.Height - childContainer.Height) / 2);
 
-                    var currentStyle = Win32API.GetWindowLong(_process.MainWindowHandle, Win32API.GWL_STYLE);
+                    //var currentStyle = Win32API.GetWindowLong(_mainWindowHandle, Win32API.GWL_STYLE);
 
-                    if ((currentStyle & (int)Win32API.WindowStyles.WS_CHILD) > 0)
-                    {
-                        throw new InvalidOperationException("Emulator window already hosted");
-                    }
+                    //if ((currentStyle & (int)Win32API.WindowStyles.WS_CHILD) > 0)
+                    //{
+                    //    throw new InvalidOperationException("Emulator window already hosted");
+                    //}
 
                     var childStyle = (IntPtr)(Win32API.WindowStyles.WS_CHILD |
                                               // the parent cannot draw over the child's area. this is needed to avoid refresh issues
@@ -284,12 +357,12 @@ namespace VsAndroidEm
                                               Win32API.WindowStyles.WS_MAXIMIZE
                                               );
 
-                    if (0 == Win32API.SetWindowLong(_process.MainWindowHandle, Win32API.GWL_STYLE, (int)childStyle))
+                    if (0 == Win32API.SetWindowLong(_mainWindowHandle, Win32API.GWL_STYLE, (int)childStyle))
                     {
                         throw new InvalidOperationException($"Unable to set main window style ({GetLastErrorMessage()})");
                     }
 
-                    if (IntPtr.Zero == Win32API.SetParent(_process.MainWindowHandle, childInternalContainer.Handle))
+                    if (IntPtr.Zero == Win32API.SetParent(_mainWindowHandle, childInternalContainer.Handle))
                     {
                         throw new InvalidOperationException($"Unable to relocate emulator main window ({GetLastErrorMessage()})");
                     }
@@ -319,6 +392,16 @@ namespace VsAndroidEm
                         throw new InvalidOperationException($"Unable to relocate emulator tool window ({GetLastErrorMessage()})");
                     }
 
+                    var visualStudioProcessId = Process.GetCurrentProcess().Id;
+
+                    _emulatorMonitor.SaveEmulatorInfo(new EmulatorInfo 
+                    {
+                        EmulatorProcessId = _process.Id,
+                        VisualStudioProcessId = visualStudioProcessId,
+                        MainWindowHandle = _mainWindowHandle.ToInt64(),
+                        ChildWindowHandle = _childWindowHandle.ToInt64(),
+                        ToolWindowHandle = _toolWindowHandle.ToInt64(),
+                    });
                 }
                 catch (Exception ex)
                 {
@@ -389,7 +472,7 @@ namespace VsAndroidEm
                         throw new InvalidOperationException($"Unable to set main window position ({GetLastErrorMessage()})");
                     }
 
-                    if (!Win32API.UpdateWindow(_process.MainWindowHandle))
+                    if (!Win32API.UpdateWindow(_mainWindowHandle))
                     {
                         throw new InvalidOperationException($"Unable to update main window ({GetLastErrorMessage()})");
                     }
@@ -406,57 +489,55 @@ namespace VsAndroidEm
                 }
             }
 
+            try
             {
-                try
+                if (Win32API.GetWindowRect(_childWindowHandle, out var childWindowRect) &&
+                    Win32API.GetWindowRect(_mainWindowHandle, out var mainWindowWindowRect))
                 {
-                    if (Win32API.GetWindowRect(_childWindowHandle, out var childWindowRect) &&
-                        Win32API.GetWindowRect(_mainWindowHandle, out var mainWindowWindowRect))
+                    var currentChildWindowSize = new Size(childWindowRect.Right - childWindowRect.Left, childWindowRect.Bottom - childWindowRect.Top);
+
+                    if (currentChildWindowSize != _lastChildWindowSize || _updateChildWindowSize)
                     {
-                        var currentChildWindowSize = new Size(childWindowRect.Right - childWindowRect.Left, childWindowRect.Bottom - childWindowRect.Top);
+                        _lastChildWindowSize = new Size(childWindowRect.Right - childWindowRect.Left, childWindowRect.Bottom - childWindowRect.Top);
 
-                        if (currentChildWindowSize != _lastChildWindowSize || _updateChildWindowSize)
-                        {
-                            _lastChildWindowSize = new Size(childWindowRect.Right - childWindowRect.Left, childWindowRect.Bottom - childWindowRect.Top);
+                        childContainer.Width = _lastChildWindowSize.Width;
+                        childContainer.Height = _lastChildWindowSize.Height;
+                        childContainer.Left = Math.Max(0, (emulatorContainer.Width - childContainer.Width) / 2);
+                        childContainer.Top = Math.Max(0, (emulatorContainer.Height - childContainer.Height) / 2);
 
-                            childContainer.Width = _lastChildWindowSize.Width;
-                            childContainer.Height = _lastChildWindowSize.Height;
-                            childContainer.Left = Math.Max(0, (emulatorContainer.Width - childContainer.Width) / 2);
-                            childContainer.Top = Math.Max(0, (emulatorContainer.Height - childContainer.Height) / 2);
+                        _emulatorFrameSize = new Size(childWindowRect.Left - mainWindowWindowRect.Left, childWindowRect.Top - mainWindowWindowRect.Top);
 
-                            _emulatorFrameSize = new Size(childWindowRect.Left - mainWindowWindowRect.Left, childWindowRect.Top - mainWindowWindowRect.Top);
+                        childInternalContainer.Left = -_emulatorFrameSize.Width;
+                        childInternalContainer.Top = -_emulatorFrameSize.Height;
+                        childInternalContainer.Width = -childInternalContainer.Left + childContainer.Width;
+                        childInternalContainer.Height = -childInternalContainer.Top + childContainer.Height;
 
-                            childInternalContainer.Left = -_emulatorFrameSize.Width;
-                            childInternalContainer.Top = -_emulatorFrameSize.Height;
-                            childInternalContainer.Width = -childInternalContainer.Left + childContainer.Width;
-                            childInternalContainer.Height = -childInternalContainer.Top + childContainer.Height;
+                        Debug.WriteLine($"[{_emulatorName}] MainWindow position adjusted");
 
-                            Debug.WriteLine($"[{_emulatorName}] MainWindow position adjusted");
+                        Win32API.ShowWindow(_mainWindowHandle, Win32API.SW_SHOW);
+                        Win32API.ShowWindow(_toolWindowHandle, Win32API.SW_SHOW);
 
-                            Win32API.ShowWindow(_process.MainWindowHandle, Win32API.SW_SHOW);
-                            Win32API.ShowWindow(_toolWindowHandle, Win32API.SW_SHOW);
+                        _updateChildWindowSize = false;
 
-                            _updateChildWindowSize = false;
-
-                            ProcessAttached?.Invoke(this, EventArgs.Empty);
-                        }
-
-                        _timerUpdate.Interval = 100;
+                        ProcessAttached?.Invoke(this, EventArgs.Empty);
                     }
-                    else
-                    {
-                        _childWindowHandle = IntPtr.Zero;
-                        _updateChildWindowSize = true;
-                    }
+
+                    _timerUpdate.Interval = 100;
                 }
-                catch (Exception ex)
+                else
                 {
-                    Debug.WriteLine($"[{_emulatorName}] Exception: {ex}");
-
-                    _inError = true;
-                    LastErrorMessage = ex.Message;
-                    ErrorRaised?.Invoke(this, EventArgs.Empty);
-                    return;
+                    _childWindowHandle = IntPtr.Zero;
+                    _updateChildWindowSize = true;
                 }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[{_emulatorName}] Exception: {ex}");
+
+                _inError = true;
+                LastErrorMessage = ex.Message;
+                ErrorRaised?.Invoke(this, EventArgs.Empty);
+                return;
             }
         }
 

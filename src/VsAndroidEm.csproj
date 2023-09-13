@@ -53,6 +53,7 @@
       <DependentUpon>EmulatorControl.xaml</DependentUpon>
     </Compile>
     <Compile Include="EmulatorControlViewModel.cs" />
+    <Compile Include="EmulatorMonitor.cs" />
     <Compile Include="EmulatorProcess.cs" />
     <Compile Include="EmulatorViewer.cs">
       <SubType>UserControl</SubType>

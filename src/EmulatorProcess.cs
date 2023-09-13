@@ -24,10 +24,11 @@ namespace VsAndroidEm
         public EmulatorProcess(string name)
         {
             Name = name;
-            StartCommand = new RelayCommand(Start, () => !IsRunning);
-            StopCommand = new AsyncRelayCommand(StopAsync, () => IsRunning);
-            ShowToolBarWindowCommand = new RelayCommand(ShowToolWindow, () => IsRunning);
-            ShutdownCommand = new AsyncRelayCommand(ShutdownAsync, () => IsRunning);
+            StartCommand = new RelayCommand(Start, () => !IsRunning && !CanBeAttached);
+            StopCommand = new AsyncRelayCommand(StopAsync, () => IsRunning && !CanBeAttached);
+            ShowToolBarWindowCommand = new RelayCommand(ShowToolWindow, () => IsRunning && !CanBeAttached);
+            ShutdownCommand = new AsyncRelayCommand(ShutdownAsync, () => IsRunning && !CanBeAttached);
+            ForceAttachmentCommand = new RelayCommand(ForceAttachment, () => true);
 
             HostView = new WindowsFormsHost
             {
@@ -80,31 +81,32 @@ namespace VsAndroidEm
                     ErrorRaised?.Invoke(this, e);
                 });
             };
-        }
 
+            _viewer.CanBeAttachedChanged += (s, e) =>
+            {
+                Dispatcher.CurrentDispatcher.BeginInvoke(() =>
+                {
+                    OnPropertyChanged(nameof(CanBeAttached));
+
+                    CommandManager.InvalidateRequerySuggested();
+                });
+            };
+        }
         public ICommand StartCommand { get; }
+
         public ICommand ShowToolBarWindowCommand { get; }
+
         public ICommand StopCommand { get; }
+
         public ICommand ShutdownCommand { get; }
 
-        //int _processId;
-        //public int ProcessId
-        //{
-        //    get => _processId;
-        //    set => SetProperty(ref _processId, value);
-        //}
+        public ICommand ForceAttachmentCommand { get; }
+
         public int ProcessId { get; private set; }
 
         public string Name { get; }
 
         public string FormatName => $"{Name}{(IsStarted ? "(Running)" : string.Empty)}";
-
-        //string _emulatorName;
-        //public string EmulatorName
-        //{
-        //    get => _emulatorName;
-        //    set => SetProperty(ref _emulatorName, value);
-        //}
 
         public WindowsFormsHost HostView { get; }
 
@@ -115,6 +117,8 @@ namespace VsAndroidEm
         public bool IsRunning => !IsBusy && IsStarted && IsReadyToAcceptCommand;
 
         public string LastErrorMessage => _viewer.LastErrorMessage;
+
+        public bool CanBeAttached => _viewer.CanBeAttached;
 
         public bool IsBusy
         {
@@ -176,5 +180,9 @@ namespace VsAndroidEm
             IsBusy = false;
         }
 
+        private void ForceAttachment()
+        {
+            _viewer.ForceAttachment = true;
+        }
     }
 }

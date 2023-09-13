@@ -4,6 +4,7 @@ using EnvDTE;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -17,7 +18,7 @@ namespace VsAndroidEm;
 
 public class EmulatorControlViewModel : ObservableObject
 {
-    public ObservableCollection<EmulatorProcess> _processes = new ObservableCollection<EmulatorProcess>();
+    public ObservableCollection<EmulatorProcess> _processes = new();
     private readonly DispatcherTimer _timer;
 
     public EmulatorControlViewModel() 
@@ -47,6 +48,7 @@ public class EmulatorControlViewModel : ObservableObject
             OnPropertyChanged(nameof(StopCommand));
             OnPropertyChanged(nameof(ShowToolBarWindowCommand));
             OnPropertyChanged(nameof(ShutdownCommand));
+            OnPropertyChanged(nameof(ForceAttachmentCommand));
         }
     }
 
@@ -58,8 +60,9 @@ public class EmulatorControlViewModel : ObservableObject
     
     public ICommand ShutdownCommand => SelectedEmulator?.ShutdownCommand;
 
-    public ICommand RefreshCommand { get; }
+    public ICommand ForceAttachmentCommand => SelectedEmulator?.ForceAttachmentCommand;
 
+    public ICommand RefreshCommand { get; }
 
     private void Timer_Tick(object sender, EventArgs e)
     {
@@ -87,19 +90,23 @@ public class EmulatorControlViewModel : ObservableObject
                 continue;
             }
 
-            try
-            {
-                SelectedEmulator = GetFromIniFile(file);
+            GetFromIniFile(file);
 
-                //force notifications
-                OnPropertyChanged(nameof(SelectedEmulator));
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(ex);
-            }
+            //try
+            //{
+            //    SelectedEmulator = GetFromIniFile(file);
+
+            //    //force notifications
+            //    OnPropertyChanged(nameof(SelectedEmulator));
+            //}
+            //catch (Exception ex)
+            //{
+            //    Debug.WriteLine(ex);
+            //}
 
         }
+
+        //SelectedEmulator = _processes.FirstOrDefault();
     }
 
     private EmulatorProcess GetFromIniFile(string iniFilePath)
@@ -116,11 +123,10 @@ public class EmulatorControlViewModel : ObservableObject
         {
             if (process.Name ==  avdName) 
             {
-                //process.ProcessId = processId;
-                //process.EmulatorName = emulatorName;
                 process.ProcessExited += Emulator_ProcessExited;
                 process.ErrorRaised += Emulator_ErrorRaised;
                 process.ProcessAttached += Emulator_ProcessAttached;
+                
 
                 process.Monitor(processId, emulatorName);
 
@@ -150,6 +156,7 @@ public class EmulatorControlViewModel : ObservableObject
             var emulatorProcess = (EmulatorProcess)sender;
             emulatorProcess.ProcessExited -= Emulator_ProcessExited;
             emulatorProcess.ErrorRaised -= Emulator_ErrorRaised;
+            emulatorProcess.ProcessAttached -= Emulator_ProcessAttached;
 
             await emulatorProcess.StopAsync();
 
