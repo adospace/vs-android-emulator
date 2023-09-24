@@ -49,6 +49,7 @@ public class EmulatorControlViewModel : ObservableObject
             OnPropertyChanged(nameof(ShowToolBarWindowCommand));
             OnPropertyChanged(nameof(ShutdownCommand));
             OnPropertyChanged(nameof(ForceAttachmentCommand));
+            CommandManager.InvalidateRequerySuggested();
         }
     }
 
@@ -74,23 +75,24 @@ public class EmulatorControlViewModel : ObservableObject
             return;
         }
 
-        var avdRunningFolderFiles = Directory.GetFiles(avdRunningFolder, "*.ini");
+        var avdRunningFolderFiles = Directory.GetFiles(avdRunningFolder, "*.ini").ToArray();
 
-        foreach (var file in avdRunningFolderFiles)
+        foreach (var processIniFile in avdRunningFolderFiles)
         {
-            var processId = int.Parse(System.IO.Path.GetFileNameWithoutExtension(file).Substring(4)); //pid_
+            var processId = int.Parse(System.IO.Path.GetFileNameWithoutExtension(processIniFile).Substring(4)); //pid_
+
+            if (!Win32API.CheckProcessIsRunning(processId))
+            {
+                File.Delete(processIniFile);
+                continue;
+            }
 
             if (_processes.Any(_ => _.ProcessId == processId))
             {
                 continue;
             }
 
-            if (!Win32API.CheckProcessIsRunning(processId))
-            {
-                continue;
-            }
-
-            GetFromIniFile(file);
+            GetFromIniFile(processIniFile);
 
             //try
             //{
@@ -125,8 +127,7 @@ public class EmulatorControlViewModel : ObservableObject
             {
                 process.ProcessExited += Emulator_ProcessExited;
                 process.ErrorRaised += Emulator_ErrorRaised;
-                process.ProcessAttached += Emulator_ProcessAttached;
-                
+                process.ProcessAttached += Emulator_ProcessAttached;               
 
                 process.Monitor(processId, emulatorName);
 
@@ -158,7 +159,7 @@ public class EmulatorControlViewModel : ObservableObject
             emulatorProcess.ErrorRaised -= Emulator_ErrorRaised;
             emulatorProcess.ProcessAttached -= Emulator_ProcessAttached;
 
-            await emulatorProcess.StopAsync();
+            await emulatorProcess.StopAsync(closeEmulatorProcess: false);
 
             SelectedEmulator = _processes.FirstOrDefault(_ => _.IsStarted);
 
@@ -179,6 +180,20 @@ public class EmulatorControlViewModel : ObservableObject
             return;
         }
 
+        _timer.Tick -= Timer_Tick;
+        _timer.Stop();
+
+        foreach (var process in _processes.ToArray())
+        {
+            process.ProcessExited -= Emulator_ProcessExited;
+            process.ErrorRaised -= Emulator_ErrorRaised;
+            process.ProcessAttached -= Emulator_ProcessAttached;
+
+            await process.StopAsync(closeEmulatorProcess: false, force: false);
+        }
+
+        _processes.Clear();
+
         foreach (var avdName in avdList)
         {
             if (_processes.Any(_=>_.Name == avdName))
@@ -188,6 +203,9 @@ public class EmulatorControlViewModel : ObservableObject
 
             _processes.Add(new EmulatorProcess(avdName));
         }
+
+        _timer.Tick += Timer_Tick;
+        _timer.Start();
 
         OnPropertyChanged(nameof(Processes));
     }
@@ -202,18 +220,11 @@ public class EmulatorControlViewModel : ObservableObject
             foreach (var process in _processes.ToArray())
             {
                 await process.StopAsync();
-
-                var avdRunningFolderFiles = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "temp", "avd", "running");
-
-                var processIniFile = System.IO.Path.Combine(avdRunningFolderFiles, $"pid_{process.ProcessId}.ini");
-
-                File.Delete(processIniFile);
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine(ex);
+            Debug.WriteLine(ex);
         }
     }
 

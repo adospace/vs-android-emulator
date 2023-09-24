@@ -25,9 +25,9 @@ namespace VsAndroidEm
         {
             Name = name;
             StartCommand = new RelayCommand(Start, () => !IsRunning && !CanBeAttached);
-            StopCommand = new AsyncRelayCommand(StopAsync, () => IsRunning && !CanBeAttached);
+            StopCommand = new AsyncRelayCommand(()=>StopAsync(force: true), () => IsRunning);
             ShowToolBarWindowCommand = new RelayCommand(ShowToolWindow, () => IsRunning && !CanBeAttached);
-            ShutdownCommand = new AsyncRelayCommand(ShutdownAsync, () => IsRunning && !CanBeAttached);
+            ShutdownCommand = new AsyncRelayCommand(ShutdownAsync, () => IsRunning);
             ForceAttachmentCommand = new RelayCommand(ForceAttachment, () => true);
 
             HostView = new WindowsFormsHost
@@ -42,7 +42,7 @@ namespace VsAndroidEm
                     OnPropertyChanged(nameof(IsStarted));
                     OnPropertyChanged(nameof(IsRunning));
                     OnPropertyChanged(nameof(FormatName));
-                    OnPropertyChanged(nameof(IsReadyToAcceptCommand));
+                    //OnPropertyChanged(nameof(IsReadyToAcceptCommand));
 
                     CommandManager.InvalidateRequerySuggested();
 
@@ -57,7 +57,7 @@ namespace VsAndroidEm
                     OnPropertyChanged(nameof(IsStarted));
                     OnPropertyChanged(nameof(IsRunning));
                     OnPropertyChanged(nameof(FormatName));
-                    OnPropertyChanged(nameof(IsReadyToAcceptCommand));
+                    //OnPropertyChanged(nameof(IsReadyToAcceptCommand));
 
                     CommandManager.InvalidateRequerySuggested();
 
@@ -72,7 +72,7 @@ namespace VsAndroidEm
                     OnPropertyChanged(nameof(IsStarted));
                     OnPropertyChanged(nameof(FormatName));
                     OnPropertyChanged(nameof(IsRunning));
-                    OnPropertyChanged(nameof(IsReadyToAcceptCommand));
+                    //OnPropertyChanged(nameof(IsReadyToAcceptCommand));
                     OnPropertyChanged(nameof(LastErrorMessage));
                     OnPropertyChanged(nameof(LastErrorMessageVisibility));
 
@@ -87,6 +87,8 @@ namespace VsAndroidEm
                 Dispatcher.CurrentDispatcher.BeginInvoke(() =>
                 {
                     OnPropertyChanged(nameof(CanBeAttached));
+                    OnPropertyChanged(nameof(IsRunning));
+                    OnPropertyChanged(nameof(FormatName));
 
                     CommandManager.InvalidateRequerySuggested();
                 });
@@ -112,9 +114,9 @@ namespace VsAndroidEm
 
         public bool IsStarted => _viewer.IsStarted;
 
-        public bool IsReadyToAcceptCommand => _viewer.IsReadyToAcceptCommand;
+        //public bool IsReadyToAcceptCommand => _viewer.IsReadyToAcceptCommand;
 
-        public bool IsRunning => !IsBusy && IsStarted && IsReadyToAcceptCommand;
+        public bool IsRunning => !IsBusy && IsStarted/* && IsReadyToAcceptCommand*/;
 
         public string LastErrorMessage => _viewer.LastErrorMessage;
 
@@ -149,22 +151,22 @@ namespace VsAndroidEm
             IsBusy = true;
             ProcessId = processId;
 
-            _viewer.Start(processId, emulatorName);
+            _viewer.Monitor(Name, processId, emulatorName);
 
             IsBusy = false;
         }
 
         public void Start()
         {
-            EmulatorCLI.RunEmulator(Name);
+            _viewer.Start(Name);
         }
 
 
-        public async Task StopAsync()
+        public async Task StopAsync(bool closeEmulatorProcess = true, bool shutdownEmulator = false, bool force = true)
         {
             IsBusy = true;
 
-            await _viewer.StopAsync();
+            await _viewer.StopAsync(closeEmulatorProcess, shutdownEmulator, force);
 
             ProcessId = 0;
 
@@ -175,7 +177,7 @@ namespace VsAndroidEm
         {
             IsBusy = true;
 
-            await _viewer.StopAsync(shutdownEmulator: true);
+            await _viewer.StopAsync(shutdownEmulator: true, force: true);
 
             IsBusy = false;
         }

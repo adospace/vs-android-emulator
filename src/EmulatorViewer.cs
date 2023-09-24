@@ -17,6 +17,7 @@ namespace VsAndroidEm
 {
     public partial class EmulatorViewer : UserControl
     {
+        private string _avdName; 
         private string _emulatorName;
         private Process _process;
         private IntPtr _mainWindowHandle;
@@ -37,13 +38,28 @@ namespace VsAndroidEm
         private static readonly EmulatorMonitor _emulatorMonitor = new();
 
         System.Windows.Forms.Timer _timerUpdate;
+        
 
         public EmulatorViewer()
         {
             InitializeComponent();
         }
 
-        public void Start(int processId, string emulatorName)
+        public void Start(string avdName)
+        {
+            _avdName = avdName;
+
+            var visualStudioProcessId = Process.GetCurrentProcess().Id;
+            _emulatorMonitor.SaveEmulatorInfo(new EmulatorInfo
+            {
+                AvdName = avdName,
+                VisualStudioProcessId = visualStudioProcessId
+            });
+
+            EmulatorCLI.RunEmulator(avdName);
+        }
+
+        public void Monitor(string avdName, int processId, string emulatorName)
         {
             lock (this)
             {
@@ -51,15 +67,24 @@ namespace VsAndroidEm
                 {
                     return;
                 }
-
-                _emulatorName = emulatorName;
-                _process = Process.GetProcessById(processId);
-
+                
+                try
+                {
+                    _process = Process.GetProcessById(processId);
+                }
+                catch (ArgumentException)
+                {
+                    return;
+                }                
+                
                 if (_process.HasExited)
                 {
                     _process = null;
                     return;
                 }
+
+                _emulatorName = emulatorName;
+                _avdName = avdName;
 
                 _timerUpdate = new System.Windows.Forms.Timer
                 {
@@ -70,7 +95,7 @@ namespace VsAndroidEm
             }
         }
 
-        public async Task StopAsync(bool closeEmulatorProcess = true, bool shutdownEmulator = false)
+        public async Task StopAsync(bool closeEmulatorProcess = true, bool shutdownEmulator = false, bool force = false)
         {
             try
             {
@@ -81,7 +106,7 @@ namespace VsAndroidEm
                     return;
                 }
 
-                await StopCoreAsync(closeEmulatorProcess, shutdownEmulator);
+                await StopCoreAsync(closeEmulatorProcess, shutdownEmulator, force);
 
                 if (_timerUpdate != null)
                 {
@@ -108,11 +133,11 @@ namespace VsAndroidEm
             return (completedTask == waitForExitTask);
         }
 
-        private async Task StopCoreAsync(bool closeEmulatorProcess, bool shutdownEmulator = false)
+        private async Task StopCoreAsync(bool closeEmulatorProcess, bool shutdownEmulator = false, bool force = false)
         {
-            if (closeEmulatorProcess)
+            if (closeEmulatorProcess && !force)
             {
-                var emulatorInfo = _emulatorMonitor.GetExistingEmulatorInfo(_process.Id);
+                var emulatorInfo = _emulatorMonitor.GetExistingEmulatorInfo(_avdName);
 
                 if (emulatorInfo != null)
                 {
@@ -170,7 +195,7 @@ namespace VsAndroidEm
             LastErrorMessage = null;
         }
 
-        public bool IsStarted => _process != null;
+        public bool IsStarted => _process != null && !_process.HasExited;
 
         public string LastErrorMessage { get; private set; }
 
@@ -217,7 +242,7 @@ namespace VsAndroidEm
                 return;
             }
 
-            var emulatorInfo = _emulatorMonitor.GetExistingEmulatorInfo(_process.Id);
+            var emulatorInfo = _emulatorMonitor.GetExistingEmulatorInfo(_avdName);
 
             if (emulatorInfo != null)
             {
@@ -397,6 +422,7 @@ namespace VsAndroidEm
                     _emulatorMonitor.SaveEmulatorInfo(new EmulatorInfo 
                     {
                         EmulatorProcessId = _process.Id,
+                        AvdName = _avdName,
                         VisualStudioProcessId = visualStudioProcessId,
                         MainWindowHandle = _mainWindowHandle.ToInt64(),
                         ChildWindowHandle = _childWindowHandle.ToInt64(),

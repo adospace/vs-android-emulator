@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.Linq;
@@ -13,6 +14,8 @@ namespace VsAndroidEm;
 
 class EmulatorInfo
 {
+    public string AvdName { get; set; }
+
     public int EmulatorProcessId { get; set; }
 
     public int VisualStudioProcessId { get; set; }
@@ -29,7 +32,7 @@ class EmulatorMonitor
 {
     private static readonly Mutex _sharedLock = new(false, nameof(VsAndroidEm));
 
-    public EmulatorInfo GetExistingEmulatorInfo(int emulatorProcessId)
+    public EmulatorInfo GetExistingEmulatorInfo(string avdName)
     {
         try
         {
@@ -45,14 +48,59 @@ class EmulatorMonitor
                 return null;
             }
 
-            var infos = JsonConvert.DeserializeObject<EmulatorInfo[]>(File.ReadAllText(sharedFilePath));
+            var infos = JsonConvert.DeserializeObject<List<EmulatorInfo>>(File.ReadAllText(sharedFilePath));
 
             if (infos == null)
             {
                 return null;
             }
 
-            return infos.FirstOrDefault(_ => _.EmulatorProcessId == emulatorProcessId);
+            bool infoMustBeSavedBack = false;
+            foreach (var info in infos.ToArray())
+            {
+                if (string.IsNullOrEmpty(info.AvdName))
+                {
+                    infoMustBeSavedBack = true;
+                    infos.Remove(info);
+                    continue;
+                }
+
+                if (info.EmulatorProcessId != 0)
+                {
+                    if (!Win32API.CheckProcessIsRunning(info.EmulatorProcessId))
+                    {
+                        infos.Remove(info);
+                        infoMustBeSavedBack = true;
+                    };
+                }
+
+                if (info.VisualStudioProcessId != 0)
+                {
+                    if (!Win32API.CheckProcessIsRunning(info.VisualStudioProcessId))
+                    {
+                        infos.Remove(info);
+                        infoMustBeSavedBack = true;
+                    };
+                }
+            }
+
+            var foundEmulatorInfoWithProcessId = infos.FirstOrDefault(_ => _.AvdName == avdName && _.EmulatorProcessId != 0);
+            var foundEmulatorInfo = infos.FirstOrDefault(_ => _.AvdName == avdName && _.EmulatorProcessId == 0);
+
+            if (foundEmulatorInfo != null && foundEmulatorInfoWithProcessId != null)
+            {
+                infos.Remove(foundEmulatorInfo);
+                infoMustBeSavedBack = true;
+            }
+
+            if (infoMustBeSavedBack)
+            {
+                var json = JsonConvert.SerializeObject(infos);
+
+                File.WriteAllText(sharedFilePath, json);
+            }
+
+            return foundEmulatorInfoWithProcessId ?? foundEmulatorInfo;
 
         }
         finally 
@@ -79,7 +127,7 @@ class EmulatorMonitor
                 infos = JsonConvert.DeserializeObject<EmulatorInfo[]>(File.ReadAllText(sharedFilePath))?.ToList() ?? new List<EmulatorInfo>();
             }
 
-            infos.RemoveAll(_ => _.EmulatorProcessId == info.EmulatorProcessId);
+            infos.RemoveAll(_ => _.AvdName == info.AvdName || string.IsNullOrEmpty(_.AvdName));
             infos.Add(info);
 
             var json = JsonConvert.SerializeObject(infos);
