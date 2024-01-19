@@ -219,7 +219,7 @@ public class EmulatorControlViewModel : ObservableObject
 
             foreach (var process in _processes.ToArray())
             {
-                await process.StopAsync();
+                await process.StopAsync(force: false);
             }
         }
         catch (Exception ex)

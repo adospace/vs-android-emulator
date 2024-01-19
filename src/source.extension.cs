@@ -11,7 +11,7 @@ namespace VsAndroidEm
         public const string Name = "VsAndroidEm";
         public const string Description = @"This extension embeds the Android emulator directly inside a tool window of Visual Studio. It allows to switch between multiple running emulators, show/hide their toolbar, stop or shutdown them.";
         public const string Language = "en-US";
-        public const string Version = "1.7";
+        public const string Version = "1.8";
         public const string Author = "Adolfo Marinucci";
         public const string Tags = "android emulator";
     }
