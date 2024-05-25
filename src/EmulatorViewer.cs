@@ -37,8 +37,7 @@ namespace VsAndroidEm
 
         private static readonly EmulatorMonitor _emulatorMonitor = new();
 
-        System.Windows.Forms.Timer _timerUpdate;
-        
+        System.Windows.Forms.Timer _timerUpdate;       
 
         public EmulatorViewer()
         {
@@ -251,6 +250,19 @@ namespace VsAndroidEm
                 {
                     CanBeAttached = false;
                     ForceAttachment = false;
+
+                    if (_mainWindowHandle == IntPtr.Zero)
+                    {
+                        _mainWindowHandle = new IntPtr(emulatorInfo.MainWindowHandle);
+                    }
+                    if (_childWindowHandle == IntPtr.Zero)
+                    {
+                        _childWindowHandle = new IntPtr(emulatorInfo.ChildWindowHandle);
+                    }
+                    if (_toolWindowHandle == IntPtr.Zero)
+                    {
+                        _toolWindowHandle = new IntPtr(emulatorInfo.ToolWindowHandle);
+                    }
                 }
                 else
                 {
@@ -358,7 +370,6 @@ namespace VsAndroidEm
                     {
                         _childWindowHandle = IntPtr.Zero;
                         return;
-                        //throw new InvalidOperationException($"Unable to get initial child window rect ({GetLastErrorMessage()})");
                     }
 
                     _lastChildWindowSize = new Size(childWindowRect.Right - childWindowRect.Left, childWindowRect.Bottom - childWindowRect.Top);
@@ -367,13 +378,6 @@ namespace VsAndroidEm
                     childContainer.Height = _lastChildWindowSize.Height;
                     childContainer.Left = Math.Max(0, (emulatorContainer.Width - childContainer.Width) / 2);
                     childContainer.Top = Math.Max(0, (emulatorContainer.Height - childContainer.Height) / 2);
-
-                    //var currentStyle = Win32API.GetWindowLong(_mainWindowHandle, Win32API.GWL_STYLE);
-
-                    //if ((currentStyle & (int)Win32API.WindowStyles.WS_CHILD) > 0)
-                    //{
-                    //    throw new InvalidOperationException("Emulator window already hosted");
-                    //}
 
                     var childStyle = (IntPtr)(Win32API.WindowStyles.WS_CHILD |
                                               // the parent cannot draw over the child's area. this is needed to avoid refresh issues

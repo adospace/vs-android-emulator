@@ -36,6 +36,8 @@ public class EmulatorControlViewModel : ObservableObject
 
     public ObservableCollection<EmulatorProcess> Processes => _processes;
 
+    static string _selectedEmulatorName;
+
     private EmulatorProcess _selectedEmulator;
 
     public EmulatorProcess SelectedEmulator
@@ -50,6 +52,8 @@ public class EmulatorControlViewModel : ObservableObject
             OnPropertyChanged(nameof(ShutdownCommand));
             OnPropertyChanged(nameof(ForceAttachmentCommand));
             CommandManager.InvalidateRequerySuggested();
+
+            _selectedEmulatorName = _selectedEmulator?.Name;
         }
     }
 
@@ -67,7 +71,7 @@ public class EmulatorControlViewModel : ObservableObject
 
     private void Timer_Tick(object sender, EventArgs e)
     {
-        var avdRunningFolder = System.IO.Path.Combine(
+        var avdRunningFolder = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "temp", "avd", "running");
 
         if (!Directory.Exists(avdRunningFolder))
@@ -77,9 +81,11 @@ public class EmulatorControlViewModel : ObservableObject
 
         var avdRunningFolderFiles = Directory.GetFiles(avdRunningFolder, "*.ini").ToArray();
 
+        var emulatorLoaded = false;
+
         foreach (var processIniFile in avdRunningFolderFiles)
         {
-            var processId = int.Parse(System.IO.Path.GetFileNameWithoutExtension(processIniFile).Substring(4)); //pid_
+            var processId = int.Parse(Path.GetFileNameWithoutExtension(processIniFile).Substring(4)); //pid_
 
             if (!Win32API.CheckProcessIsRunning(processId))
             {
@@ -92,28 +98,21 @@ public class EmulatorControlViewModel : ObservableObject
                 continue;
             }
 
-            GetFromIniFile(processIniFile);
-
-            //try
-            //{
-            //    SelectedEmulator = GetFromIniFile(file);
-
-            //    //force notifications
-            //    OnPropertyChanged(nameof(SelectedEmulator));
-            //}
-            //catch (Exception ex)
-            //{
-            //    Debug.WriteLine(ex);
-            //}
-
+            emulatorLoaded = GetFromIniFile(processIniFile) != null;
         }
 
-        //SelectedEmulator = _processes.FirstOrDefault();
+        if (SelectedEmulator == null && emulatorLoaded)
+        {
+            SelectedEmulator = _processes.FirstOrDefault(_ => _.IsStarted);
+
+            //force notifications
+            OnPropertyChanged(nameof(SelectedEmulator));
+        }
     }
 
     private EmulatorProcess GetFromIniFile(string iniFilePath)
     {
-        var processId = int.Parse(System.IO.Path.GetFileNameWithoutExtension(iniFilePath).Substring(4));
+        var processId = int.Parse(Path.GetFileNameWithoutExtension(iniFilePath).Substring(4));
         var iniValues = File.ReadAllLines(iniFilePath)
             .Select(_ => _.Split('='))
             .ToDictionary(_ => _[0], _ => _[1]);
@@ -168,7 +167,7 @@ public class EmulatorControlViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine(ex);
+            Debug.WriteLine(ex);
         }
     }
 

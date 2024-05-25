@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
     <Metadata>
-        <Identity Id="VsAndroidEm.5dfcfa73-0d82-4b24-9c01-479eaa271e61" Version="1.8" Language="en-US" Publisher="Adolfo Marinucci" />
+        <Identity Id="VsAndroidEm.5dfcfa73-0d82-4b24-9c01-479eaa271e61" Version="1.9" Language="en-US" Publisher="Adolfo Marinucci" />
         <DisplayName>VsAndroidEm</DisplayName>
         <Description xml:space="preserve">This extension embeds the Android emulator directly inside a tool window of Visual Studio. It allows to switch between multiple running emulators, show/hide their toolbar, stop or shutdown them.</Description>
         <MoreInfo>https://github.com/adospace/vs-android-emulator</MoreInfo>
