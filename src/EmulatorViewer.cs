@@ -255,10 +255,6 @@ namespace VsAndroidEm
                     {
                         _mainWindowHandle = new IntPtr(emulatorInfo.MainWindowHandle);
                     }
-                    if (_childWindowHandle == IntPtr.Zero)
-                    {
-                        _childWindowHandle = new IntPtr(emulatorInfo.ChildWindowHandle);
-                    }
                     if (_toolWindowHandle == IntPtr.Zero)
                     {
                         _toolWindowHandle = new IntPtr(emulatorInfo.ToolWindowHandle);
