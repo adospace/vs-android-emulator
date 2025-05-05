@@ -11,18 +11,18 @@ namespace VsAndroidEm;
 
 class EmulatorCLI
 {
-    private static async Task<CommandResult> ExecuteCommandAsync(params string[] command)
-    {
-        var emulatorDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-            "Android", "android-sdk", "emulator");
-        var emulatorPath = Path.Combine(emulatorDirectory, "emulator.exe");
+    //private static async Task<CommandResult> ExecuteCommandAsync(params string[] command)
+    //{
+    //    var emulatorDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+    //        "Android", "android-sdk", "emulator");
+    //    var emulatorPath = Path.Combine(emulatorDirectory, "emulator.exe");
 
-        return await Cli.Wrap(emulatorPath)
-            .WithArguments(command)
-            .WithValidation(CommandResultValidation.None)
-            .WithWorkingDirectory(emulatorDirectory)
-            .ExecuteAsync();
-    }
+    //    return await Cli.Wrap(emulatorPath)
+    //        .WithArguments(command)
+    //        .WithValidation(CommandResultValidation.None)
+    //        .WithWorkingDirectory(emulatorDirectory)
+    //        .ExecuteAsync();
+    //}
 
     private static async Task<BufferedCommandResult> ExecuteBufferedCommandAsync(params string[] command)
     {
@@ -31,17 +31,27 @@ class EmulatorCLI
             "Android", "android-sdk", "emulator");
         var emulatorPath = Path.Combine(emulatorDirectory, "emulator.exe");
 
-        var result = await Cli.Wrap(emulatorPath)
-            .WithArguments(command)
-            .WithValidation(CommandResultValidation.None)
-            .WithWorkingDirectory(emulatorDirectory)
-            .ExecuteBufferedAsync();
+        try
+        {
+            var result = await Cli.Wrap(emulatorPath)
+                .WithArguments(command)
+                .WithValidation(CommandResultValidation.None)
+                .WithWorkingDirectory(emulatorDirectory)
+                .ExecuteBufferedAsync();
 
-        System.Diagnostics.Debug.WriteLine(result.StandardError);
+            System.Diagnostics.Debug.WriteLine(result.StandardError);
 
-        System.Diagnostics.Debug.WriteLine(result.StandardOutput);
+            System.Diagnostics.Debug.WriteLine(result.StandardOutput);
 
-        return result;
+            return result;
+
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(ex);
+        }
+
+        return new BufferedCommandResult(-1, DateTime.Now, DateTime.Now, string.Empty, string.Empty);
     }
 
     public static void RunEmulator(string avdName)
