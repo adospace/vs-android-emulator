@@ -243,7 +243,7 @@ namespace VsAndroidEm
 
             var emulatorInfo = _emulatorMonitor.GetExistingEmulatorInfo(_avdName);
 
-            if (emulatorInfo != null)
+            if (emulatorInfo != null && emulatorInfo.MainWindowHandle != 0)
             {
                 var visualStudioProcessId = Process.GetCurrentProcess().Id;
                 if (emulatorInfo.VisualStudioProcessId == visualStudioProcessId)
@@ -349,7 +349,8 @@ namespace VsAndroidEm
                                 throw new InvalidOperationException($"Unable to get window class name ({GetLastErrorMessage()})");
                             }
 
-                            if (className.ToString() == "Qt5QWindowToolSaveBits")
+                            if (className.ToString() == "Qt5QWindowToolSaveBits" || 
+                                className.ToString() == "Qt653QWindowToolSaveBits")
                             {
                                 _toolWindowHandle = processWindowHandle;
                                 break;

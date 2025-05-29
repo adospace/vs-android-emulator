@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using EnvDTE;
 using Microsoft.VisualStudio.PlatformUI;
 using System;
 using System.Collections.Generic;

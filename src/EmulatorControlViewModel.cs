@@ -118,11 +118,13 @@ public class EmulatorControlViewModel : ObservableObject
             .ToDictionary(_ => _[0], _ => _[1]);
 
         var avdName = iniValues["avd.name"];
+        var avdId = iniValues["avd.id"];
         var emulatorName = $"emulator-{iniValues["port.serial"]}";
 
         foreach (var process in _processes)
         {
-            if (process.Name ==  avdName) 
+            if (process.Name == avdName || 
+                process.Name == avdId)
             {
                 process.ProcessExited += Emulator_ProcessExited;
                 process.ErrorRaised += Emulator_ErrorRaised;
